@@ -25,6 +25,7 @@ const state = {
     musicPlayerVisible: false,
     mcAccounts: JSON.parse(localStorage.getItem('mcAccounts')) || {},
     badges: JSON.parse(localStorage.getItem('badges')) || {},
+    avatars: JSON.parse(localStorage.getItem('avatars')) || {},
     currentTeamFilter: 'all',
     currentTheme: localStorage.getItem('currentTheme') || 'dark',
 };
@@ -243,6 +244,43 @@ function saveInventory() { localStorage.setItem('inventory', JSON.stringify(stat
 function saveMusicUserId() { localStorage.setItem('musicUserId', JSON.stringify(state.musicUserId)); }
 function saveMcAccounts() { localStorage.setItem('mcAccounts', JSON.stringify(state.mcAccounts)); }
 function saveBadges() { localStorage.setItem('badges', JSON.stringify(state.badges)); }
+function saveAvatars() { localStorage.setItem('avatars', JSON.stringify(state.avatars)); }
+
+// ===== 头像系统 =====
+function getUserAvatar(email) {
+    return state.avatars[email] || null;
+}
+
+function setUserAvatar(email, url) {
+    state.avatars[email] = url;
+    saveAvatars();
+    updateAvatarDisplay(email);
+}
+
+function renderAvatarHTML(email, size, username) {
+    const url = getUserAvatar(email);
+    if (url) {
+        return `<img src="${escapeHtml(url)}" alt="${escapeHtml(username || '')}" style="width:${size}px;height:${size}px;object-fit:cover;border-radius:50%;image-rendering:auto;">`;
+    }
+    return `<span style="width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--secondary));color:#fff;font-weight:700;font-size:${size*0.4}px;">${(username || '?').charAt(0).toUpperCase()}</span>`;
+}
+
+function updateAvatarDisplay(email) {
+    const user = state.users.find(u => u.email === email);
+    const username = user ? user.username : '?';
+
+    // 更新导航栏头像
+    const navAvatar = document.getElementById('userAvatar');
+    if (navAvatar && state.currentUser && state.currentUser.email === email) {
+        navAvatar.innerHTML = renderAvatarHTML(email, 32, username);
+    }
+
+    // 更新个人中心头像
+    const profileAvatar = document.getElementById('profileAvatarLarge');
+    if (profileAvatar) {
+        profileAvatar.innerHTML = renderAvatarHTML(email, 88, username);
+    }
+}
 
 // ===== Minecraft 微软账号验证 =====
 async function verifyMcAccount(username) {
@@ -667,7 +705,7 @@ function updateNavAuth() {
         loginBtn.classList.add('hidden');
         registerBtn.classList.add('hidden');
         userMenu.classList.remove('hidden');
-        userAvatar.textContent = state.currentUser.username.charAt(0).toUpperCase();
+        userAvatar.innerHTML = renderAvatarHTML(state.currentUser.email, 32, state.currentUser.username);
         // 根据管理员角色显示/隐藏管理后台入口
         if (adminLink) {
             if (state.currentUser.adminRole) {
@@ -1400,6 +1438,132 @@ function initToolsBindings() {
     }
 }
 
+function initAvatarPicker() {
+    const avatarEl = document.getElementById('profileAvatarLarge');
+    if (!avatarEl || !state.currentUser) return;
+
+    avatarEl.addEventListener('click', () => {
+        const email = state.currentUser.email;
+        const current = getUserAvatar(email);
+
+        // 预设头像（使用emoji + 像素风SVG）
+        const presets = [
+            { url: '', label: '默认', icon: '?' },
+            { url: 'minecraft_grass', label: '草方块', icon: '🟩' },
+            { url: 'minecraft_dirt', label: '泥土', icon: '🟫' },
+            { url: 'minecraft_stone', label: '石头', icon: '⬜' },
+            { url: 'minecraft_diamond', label: '钻石', icon: '💎' },
+            { url: 'minecraft_ender', label: '末影', icon: '🟣' },
+            { url: 'minecraft_gold', label: '金块', icon: '🟨' },
+            { url: 'minecraft_redstone', label: '红石', icon: '🟥' },
+            { url: 'minecraft_tnt', label: 'TNT', icon: '🧨' },
+        ];
+
+        // 生成预设头像的data URI
+        function getBlockColor(type) {
+            const colors = {
+                minecraft_grass: ['#4CAF50','#388E3C','#2E7D32'],
+                minecraft_dirt: ['#8D6E63','#6D4C41','#5D4037'],
+                minecraft_stone: ['#9E9E9E','#757575','#616161'],
+                minecraft_diamond: ['#03A9F4','#0288D1','#B2EBF2'],
+                minecraft_ender: ['#9C27B0','#7B1FA2','#4A148C'],
+                minecraft_gold: ['#FFC107','#FFB300','#FF8F00'],
+                minecraft_redstone: ['#F44336','#D32F2F','#B71C1C'],
+                minecraft_tnt: ['#F44336','#212121','#FF5722'],
+            };
+            return colors[type] || ['#757575','#616161','#424242'];
+        }
+
+        function presetToDataURL(type) {
+            if (!type) return '';
+            const c = getBlockColor(type);
+            const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><rect width="64" height="64" fill="${c[0]}"/><rect x="4" y="4" width="28" height="28" fill="${c[1]}" rx="0"/><rect x="32" y="32" width="28" height="28" fill="${c[1]}" rx="0"/><rect x="32" y="4" width="28" height="28" fill="${c[0]}" opacity="0.7"/><rect x="4" y="32" width="28" height="28" fill="${c[0]}" opacity="0.7"/><rect x="4" y="4" width="12" height="12" fill="${c[2]}" opacity="0.5"/><rect x="48" y="48" width="12" height="12" fill="${c[2]}" opacity="0.5"/></svg>`;
+            return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
+        }
+
+        // 创建遮罩面板
+        const overlay = document.createElement('div');
+        overlay.className = 'avatar-overlay';
+        overlay.innerHTML = `
+            <div class="avatar-panel">
+                <div class="avatar-panel-title">更换头像</div>
+                <div class="avatar-panel-section">
+                    <div class="avatar-panel-label">上传图片</div>
+                    <label class="avatar-upload-btn">
+                        <input type="file" id="avatarFileInput" accept="image/*" style="display:none;">
+                        选择文件
+                    </label>
+                </div>
+                <div class="avatar-panel-section">
+                    <div class="avatar-panel-label">预设头像</div>
+                    <div class="avatar-preset-grid">
+                        ${presets.map(p => `
+                            <div class="avatar-preset-item ${current === presetToDataURL(p.url) ? 'active' : ''}" data-url="${presetToDataURL(p.url)}" title="${p.label}">
+                                ${p.url ? `<img src="${presetToDataURL(p.url)}" style="width:40px;height:40px;image-rendering:pixelated;">` : `<div style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:var(--surface);color:var(--text-muted);font-size:1.2rem;">?</div>`}
+                                <div class="avatar-preset-label">${p.label}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                <div class="avatar-panel-actions">
+                    <button class="btn btn-ghost" id="avatarCancelBtn" style="font-size:0.6rem;padding:8px 20px;">取消</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        // 关闭
+        const close = () => overlay.remove();
+        overlay.querySelector('#avatarCancelBtn').addEventListener('click', close);
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+
+        // 选择预设
+        overlay.querySelectorAll('.avatar-preset-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const url = item.dataset.url;
+                if (url === '') {
+                    // 恢复默认
+                    delete state.avatars[email];
+                    saveAvatars();
+                } else {
+                    setUserAvatar(email, url);
+                }
+                updateAvatarDisplay(email);
+                close();
+                showToast({ title: '头像已更换', type: 'success' });
+            });
+        });
+
+        // 上传文件
+        overlay.querySelector('#avatarFileInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            if (file.size > 2 * 1024 * 1024) {
+                showToast({ title: '文件过大', message: '图片不能超过2MB', type: 'warning' });
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                // 压缩到64x64
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 64;
+                    canvas.height = 64;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, 64, 64);
+                    const dataUrl = canvas.toDataURL('image/png');
+                    setUserAvatar(email, dataUrl);
+                    close();
+                    showToast({ title: '头像已上传', type: 'success' });
+                };
+                img.src = ev.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    });
+}
+
 function initSettingsBindings() {
     // 音乐绑定
     const saveBtn = document.getElementById('musicSaveBtn');
@@ -1537,7 +1701,7 @@ function renderMe() {
             <div class="profile-card">
                 <div class="profile-banner"></div>
                 <div class="profile-info">
-                    <div class="profile-avatar-large">${user.username.charAt(0).toUpperCase()}</div>
+                    <div class="profile-avatar-large" id="profileAvatarLarge" style="cursor:pointer;" title="点击更换头像">${renderAvatarHTML(user.email, 88, user.username)}</div>
                     <div class="profile-details">
                         <div class="profile-name-section">
                             <h2>${escapeHtml(user.username)}</h2>
@@ -1687,6 +1851,9 @@ function renderMe() {
 
     // 绑定勋章授予工具
     initToolsBindings();
+
+    // 绑定头像更换
+    initAvatarPicker();
 
     bindPostCardEvents();
 }
@@ -2975,6 +3142,26 @@ function renderUserTable(users, canDelete) {
 
 // ===== 导航链接 =====
 function initNavLinks() {
+    // 主题切换
+    const themeToggle = document.getElementById('themeToggleBtn');
+    if (themeToggle) {
+        // 恢复保存的主题
+        const saved = localStorage.getItem('theme');
+        if (saved) document.documentElement.setAttribute('data-theme', saved);
+
+        themeToggle.addEventListener('click', () => {
+            const current = document.documentElement.getAttribute('data-theme');
+            const next = current === 'light' ? '' : 'light';
+            if (next) {
+                document.documentElement.setAttribute('data-theme', next);
+                localStorage.setItem('theme', next);
+            } else {
+                document.documentElement.removeAttribute('data-theme');
+                localStorage.removeItem('theme');
+            }
+        });
+    }
+
     // 汉堡菜单切换
     const hamburger = document.getElementById('navHamburger');
     if (hamburger) {

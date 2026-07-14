@@ -87,7 +87,7 @@ function initDemoData() {
                 id: now - h * 30,
                 title: '关于论坛新版规则调整的公告',
                 content: '各位社区成员好，\n\n经过管理团队讨论，我们对论坛规则做了以下调整，即日起生效：\n\n1. 发帖规范：所有帖子需选择对应分类（技术/生活/创意），并添加适当的话题标签\n2. 互动规则：禁止恶意刷屏和重复发帖，违规帖子将被折叠处理\n3. 评论规范：请友善讨论，禁止人身攻击。违反者将视情节轻重给予警告或禁言\n4. 举报机制：帖子右上角新增举报按钮，遇到违规内容请及时举报\n5. 管理员权限：新增OP管理员角色，拥有最高管理权限\n\n如有任何建议或疑问，欢迎在本帖下方留言，我们会逐一回复。',
-                author: 'OP管理', authorId: 'op@forum.com',
+                author: 'OP管理', authorId: 'aosintan@163.com',
                 category: 'tech', topic: '官方公告', isOfficial: true,
                 time: now - h * 30, views: 12450, likes: 567,
                 comments: [
@@ -151,7 +151,7 @@ function initDemoData() {
                 id: now - h * 3,
                 title: '论坛功能更新日志 - V1.02',
                 content: 'V1.02 版本更新内容：\n\n新增功能：\n- 帖子点赞和收藏功能\n- 帖子搜索和分类筛选\n- 个人主页：查看自己发布的帖子、点赞和收藏的帖子\n- OP管理后台新增邮箱配置面板\n- 后端数据持久化（JSON文件数据库）\n\n优化改进：\n- 全面升级苹果毛玻璃视觉效果\n- 页面切换动画优化\n- 管理后台权限分级（admin / superAdmin / opAdmin）\n- XSS安全防护\n- 帖子详情页支持返回来源页面\n\n修复问题：\n- 修复登录/注册页面切换时显示异常\n- 修复管理后台评论面板变量引用错误\n- 修复点赞计数双重来源不一致\n- 修复注册流程步骤指示器重置问题\n\n感谢各位成员的反馈和建议，我们会持续改进。',
-                author: 'OP管理', authorId: 'op@forum.com',
+                author: 'OP管理', authorId: 'aosintan@163.com',
                 category: 'tech', topic: '官方公告', isOfficial: true,
                 time: now - h * 3, views: 4567, likes: 234,
                 comments: [
@@ -196,13 +196,13 @@ function initDemoData() {
         saveLikes();
     }
 
-    const adminEmails = ['admin@forum.com', 'super@forum.com', 'op@forum.com'];
+    const adminEmails = ['admin@forum.com', 'super@forum.com', 'aosintan@163.com'];
     const hasAdmins = adminEmails.every(email => state.users.some(u => u.email === email));
     if (!hasAdmins) {
         const demoAdmins = [
             { username: '管理员小王', email: 'admin@forum.com', password: 'admin123', registerTime: Date.now() - 86400000 * 30, adminRole: 'admin' },
             { username: '高级管理', email: 'super@forum.com', password: 'super123', registerTime: Date.now() - 86400000 * 60, adminRole: 'superAdmin' },
-            { username: 'OP管理', email: 'op@forum.com', password: 'op123', registerTime: Date.now() - 86400000 * 90, adminRole: 'opAdmin' }
+            { username: 'OP管理', email: 'aosintan@163.com', password: 'op123', registerTime: Date.now() - 86400000 * 90, adminRole: 'opAdmin' }
         ];
         demoAdmins.forEach(admin => {
             if (!state.users.some(u => u.email === admin.email)) {
@@ -3306,7 +3306,7 @@ function renderEmailConfigPanel(container) {
                 </div>
                 <div class="form-group">
                     <label>SMTP 服务器</label>
-                    <input type="text" id="smtpHost" class="form-input" placeholder="smtp.qq.com">
+                    <input type="text" id="smtpHost" class="form-input" value="smtp.163.com" placeholder="smtp.qq.com">
                 </div>
                 <div class="form-group">
                     <label>端口</label>
@@ -3314,11 +3314,11 @@ function renderEmailConfigPanel(container) {
                 </div>
                 <div class="form-group">
                     <label>发件邮箱</label>
-                    <input type="email" id="smtpUser" class="form-input" placeholder="your_email@qq.com">
+                    <input type="email" id="smtpUser" class="form-input" value="rcxvofficial@163.com" placeholder="your_email@qq.com">
                 </div>
                 <div class="form-group">
                     <label>SMTP 授权码</label>
-                    <input type="password" id="smtpPass" class="form-input" placeholder="SMTP 授权码（非邮箱密码）">
+                    <input type="password" id="smtpPass" class="form-input" value="XP2uMJZavsthsps7" placeholder="SMTP 授权码（非邮箱密码）">
                 </div>
                 <div class="config-actions">
                     <button class="btn btn-primary" id="saveSmtpConfig">保存配置</button>

@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RCX论坛</title>
+    <link rel="stylesheet" href="styles.css?v=2.00">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- 背景动效粒子 -->
+    <canvas id="bgCanvas"></canvas>
+
+    <!-- 导航栏 -->
+    <nav class="navbar" id="navbar">
+        <div class="nav-brand">
+            <div class="logo">
+                <svg width="28" height="28" viewBox="0 0 16 16" fill="none" style="image-rendering:pixelated">
+                    <rect x="2" y="6" width="4" height="6" fill="currentColor" opacity="0.6"/>
+                    <rect x="6" y="4" width="4" height="8" fill="currentColor" opacity="0.8"/>
+                    <rect x="10" y="5" width="4" height="7" fill="currentColor"/>
+                    <rect x="2" y="2" width="4" height="4" fill="#4CAF50"/>
+                    <rect x="6" y="1" width="4" height="3" fill="#66BB6A"/>
+                    <rect x="10" y="2" width="4" height="3" fill="#388E3C"/>
+                    <rect x="4" y="12" width="8" height="2" fill="#8D6E63"/>
+                </svg>
+                <span>RCX论坛</span>
+            </div>
+        </div>
+        <div class="nav-links">
+            <a href="#" class="nav-link active" data-page="home">主页</a>
+            <a href="#" class="nav-link" data-page="posts">帖子</a>
+            <a href="#" class="nav-link" data-page="team">管理</a>
+            <a href="#" class="nav-link" data-page="contact">联系</a>
+            <a href="#" class="nav-link" data-page="me">个人</a>
+        </div>
+        <div class="nav-auth">
+            <button class="btn btn-ghost" id="loginBtn">登录</button>
+            <button class="btn btn-primary" id="registerBtn">注册</button>
+            <div class="user-menu hidden" id="userMenu">
+                <div class="user-avatar" id="userAvatar"></div>
+                <div class="dropdown" id="userDropdown">
+                    <a href="#" data-page="profile">个人中心</a>
+                    <a href="#" data-page="settings">设置</a>
+                    <a href="#" data-page="admin" id="adminLink" class="hidden">管理后台</a>
+                    <a href="#" id="logoutBtn">退出登录</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 页面容器 -->
+    <main class="main-container">
+        <!-- 主页 -->
+        <section class="page active" id="page-home">
+            <div class="home-container">
+                <!-- 欢迎横幅 -->
+                <div class="hero" id="heroSection">
+                    <h1 class="hero-title" id="heroTitle">你好，欢迎来到论坛</h1>
+                    <p class="hero-subtitle hero-join-tip">如想最快获取信息请加入交流群</p>
+                    <div class="hero-stats">
+                        <div class="stat-item">
+                            <span class="stat-number" data-count="12847">0</span>
+                            <span class="stat-label">用户</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number" data-count="56231">0</span>
+                            <span class="stat-label">帖子</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number" data-count="3892">0</span>
+                            <span class="stat-label">今日活跃</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 官方最新动态 -->
+                <div class="home-section" id="homeOfficialSection">
+                    <div class="home-section-header">
+                        <div class="home-section-title-row">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2L3 7v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            <h2 class="section-title">官方动态</h2>
+                        </div>
+                        <a href="#" class="view-all-link" data-page="posts" data-filter="official">查看全部</a>
+                    </div>
+                    <div class="posts-list" id="homeOfficialList"></div>
+                </div>
+
+                <!-- 最新用户帖子 -->
+                <div class="home-section" id="homeUserSection">
+                    <div class="home-section-header">
+                        <div class="home-section-title-row">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            <h2 class="section-title">用户帖子</h2>
+                        </div>
+                        <a href="#" class="view-all-link" data-page="posts" data-filter="user">查看全部</a>
+                    </div>
+                    <div class="posts-list" id="homeUserList"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 帖子页面 -->
+        <section class="page" id="page-posts">
+            <div class="posts-page-container">
+                <div class="posts-page-header">
+                    <h2 class="section-title">全部帖子</h2>
+                    <div class="posts-page-actions">
+                        <div class="search-box">
+                            <svg class="search-icon" width="18" height="18" viewBox="0 0 20 20" fill="none"><circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="2"/><path d="M14 14l4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                            <input type="text" id="searchInput" placeholder="搜索帖子标题或内容..." class="search-input">
+                        </div>
+                        <div class="filter-tabs">
+                            <button class="filter-tab active" data-filter="all">全部</button>
+                            <button class="filter-tab" data-filter="user">用户帖子</button>
+                            <button class="filter-tab" data-filter="official">官方公告</button>
+                        </div>
+                        <button class="btn btn-primary" id="newPostBtn">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                            发布新帖
+                        </button>
+                    </div>
+                </div>
+                <div class="posts-list" id="postsAllList"></div>
+            </div>
+        </section>
+
+        <!-- 登录页面 -->
+        <section class="page auth-page" id="page-login">
+            <div class="auth-container">
+                <div class="auth-card">
+                    <div class="auth-header">
+                        <h2>欢迎回来</h2>
+                        <p>登录你的账户继续</p>
+                    </div>
+                    <form class="auth-form" id="loginForm">
+                        <div class="form-group">
+                            <label>邮箱</label>
+                            <div class="input-wrapper">
+                                <svg class="input-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                    <path d="M2.5 5.833l6.614 4.41a2.5 2.5 0 002.772 0l6.614-4.41M3.333 15.833h13.334A1.666 1.666 0 0018.333 14.167V5.833A1.666 1.666 0 0016.667 4.167H3.333A1.666 1.666 0 001.667 5.833v8.334a1.666 1.666 0 001.666 1.666z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                <input type="email" placeholder="请输入邮箱地址" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>密码</label>
+                            <div class="input-wrapper">
+                                <svg class="input-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                    <path d="M15.833 9.167H4.167C3.247 9.167 2.5 9.913 2.5 10.833v5.834c0 .92.746 1.666 1.667 1.666h11.666c.92 0 1.667-.746 1.667-1.666V10.833c0-.92-.746-1.666-1.667-1.666zM5.833 9.167V5.833a4.167 4.167 0 018.334 0v3.334" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                <input type="password" placeholder="请输入密码" required>
+                                <button type="button" class="toggle-password">
+                                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                        <path d="M2.5 10s2.5-5.833 7.5-5.833S17.5 10 17.5 10s-2.5 5.833-7.5 5.833S2.5 10 2.5 10z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <circle cx="10" cy="10" r="2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="form-options">
+                            <label class="checkbox">
+                                <input type="checkbox">
+                                <span class="checkmark"></span>
+                                <span class="checkbox-label">记住我</span>
+                            </label>
+                            <a href="#" class="forgot-link">忘记密码？</a>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-full">
+                            <span class="btn-text">登录</span>
+                            <span class="btn-loader"></span>
+                        </button>
+                    </form>
+                    <div class="auth-divider">
+                        <span>或使用以下方式登录</span>
+                    </div>
+                    <div class="social-login">
+                        <button class="social-btn">
+                            <svg width="20" height="20" viewBox="0 0 20 20">
+                                <path fill="currentColor" d="M10 0C4.477 0 0 4.477 0 10c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V19c0 .27.16.59.67.5C17.14 18.16 20 14.42 20 10A10 10 0 0010 0z"/>
+                            </svg>
+                        </button>
+                        <button class="social-btn">
+                            <svg width="20" height="20" viewBox="0 0 20 20">
+                                <path fill="currentColor" d="M10 0C4.48 0 0 4.48 0 10s4.48 10 10 10 10-4.48 10-10S15.52 0 10 0zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 注册页面 -->
+        <section class="page auth-page" id="page-register">
+            <div class="auth-container">
+                <div class="auth-card">
+                    <div class="auth-header">
+                        <h2>创建账户</h2>
+                        <p>加入我们，开始你的交流之旅</p>
+                    </div>
+                    <form class="auth-form" id="registerForm">
+                        <!-- 步骤指示器 -->
+                        <div class="register-steps">
+                            <div class="register-step active" data-step="1">
+                                <div class="step-num">1</div>
+                                <span>填写信息</span>
+                            </div>
+                            <div class="step-line"></div>
+                            <div class="register-step" data-step="2">
+                                <div class="step-num">2</div>
+                                <span>邮箱验证</span>
+                            </div>
+                        </div>
+
+                        <!-- 第一步：基本信息 -->
+                        <div class="register-panel" id="registerStep1">
+                            <div class="form-group">
+                                <label>用户名</label>
+                                <div class="input-wrapper">
+                                    <svg class="input-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                        <path d="M16.667 17.5v-1.667a3.333 3.333 0 00-3.334-3.333H6.667a3.333 3.333 0 00-3.333 3.333V17.5M10 9.167A3.333 3.333 0 1010 2.5a3.333 3.333 0 000 6.667z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                    <input type="text" id="regUsername" placeholder="请输入用户名" required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>邮箱</label>
+                                <div class="input-wrapper">
+                                    <svg class="input-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                        <path d="M2.5 5.833l6.614 4.41a2.5 2.5 0 002.772 0l6.614-4.41M3.333 15.833h13.334A1.666 1.666 0 0018.333 14.167V5.833A1.666 1.666 0 0016.667 4.167H3.333A1.666 1.666 0 001.667 5.833v8.334a1.666 1.666 0 001.666 1.666z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                    <input type="email" id="regEmail" placeholder="请输入邮箱地址" required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>密码</label>
+                                <div class="input-wrapper">
+                                    <svg class="input-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                        <path d="M15.833 9.167H4.167C3.247 9.167 2.5 9.913 2.5 10.833v5.834c0 .92.746 1.666 1.667 1.666h11.666c.92 0 1.667-.746 1.667-1.666V10.833c0-.92-.746-1.666-1.667-1.666zM5.833 9.167V5.833a4.167 4.167 0 018.334 0v3.334" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                    <input type="password" id="regPassword" placeholder="请输入密码（至少6位）" required minlength="6">
+                                    <button type="button" class="toggle-password">
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                            <path d="M2.5 10s2.5-5.833 7.5-5.833S17.5 10 17.5 10s-2.5 5.833-7.5 5.833S2.5 10 2.5 10z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                            <circle cx="10" cy="10" r="2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>确认密码</label>
+                                <div class="input-wrapper">
+                                    <svg class="input-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                        <path d="M15.833 9.167H4.167C3.247 9.167 2.5 9.913 2.5 10.833v5.834c0 .92.746 1.666 1.667 1.666h11.666c.92 0 1.667-.746 1.667-1.666V10.833c0-.92-.746-1.666-1.667-1.666zM5.833 9.167V5.833a4.167 4.167 0 018.334 0v3.334" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                    <input type="password" id="regConfirmPassword" placeholder="请再次输入密码" required>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-primary btn-full" id="sendCodeBtn">
+                                获取验证码
+                            </button>
+                        </div>
+
+                        <!-- 第二步：邮箱验证 -->
+                        <div class="register-panel hidden" id="registerStep2">
+                            <div class="verify-info">
+                                <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                                    <rect x="4" y="12" width="40" height="28" rx="4" stroke="currentColor" stroke-width="2.5"/>
+                                    <path d="M4 14l20 14 20-14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                <p>验证码已发送至 <strong id="verifyEmailDisplay"></strong></p>
+                            </div>
+                            <div class="form-group">
+                                <label>输入验证码</label>
+                                <div class="code-input-group">
+                                    <input type="text" class="code-input" maxlength="1" inputmode="numeric" data-index="0">
+                                    <input type="text" class="code-input" maxlength="1" inputmode="numeric" data-index="1">
+                                    <input type="text" class="code-input" maxlength="1" inputmode="numeric" data-index="2">
+                                    <input type="text" class="code-input" maxlength="1" inputmode="numeric" data-index="3">
+                                    <input type="text" class="code-input" maxlength="1" inputmode="numeric" data-index="4">
+                                    <input type="text" class="code-input" maxlength="1" inputmode="numeric" data-index="5">
+                                </div>
+                            </div>
+                            <div class="verify-actions">
+                                <button type="button" class="btn btn-ghost" id="resendCodeBtn">重新发送 (<span id="resendTimer">60</span>s)</button>
+                                <button type="button" class="btn btn-primary btn-full" id="completeRegisterBtn">完成注册</button>
+                            </div>
+                            <button type="button" class="btn btn-ghost btn-full" id="backToStep1" style="margin-top: 12px;">返回修改</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- 管理人员页面 -->
+        <section class="page" id="page-team">
+            <div class="team-container">
+                <div class="team-header">
+                    <h2 class="section-title">管理人员</h2>
+                    <p class="section-subtitle">论坛运营与管理团队</p>
+                    <div class="team-stats" id="teamStats"></div>
+                </div>
+                <div class="team-grid" id="teamGrid"></div>
+            </div>
+        </section>
+
+        <!-- 联系页面 -->
+        <section class="page" id="page-contact">
+            <div class="contact-container">
+                <div class="contact-header">
+                    <h2 class="section-title">联系我们</h2>
+                    <p class="section-subtitle">有任何问题或建议，欢迎留言</p>
+                </div>
+                <div class="contact-layout">
+                    <div class="contact-info">
+                        <div class="contact-info-card">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            <div>
+                                <h3>邮箱</h3>
+                                <p id="contactEmail">op@forum.com</p>
+                            </div>
+                        </div>
+                    </div>
+                    <form class="contact-form" id="contactForm">
+                        <div class="form-group">
+                            <label>用户名</label>
+                            <input type="text" id="contactName" class="form-input" placeholder="请输入用户名" required>
+                        </div>
+                        <div class="form-group">
+                            <label>邮箱地址</label>
+                            <input type="email" id="contactEmailInput" class="form-input" placeholder="请输入邮箱地址" required>
+                        </div>
+                        <div class="form-group">
+                            <label>主题</label>
+                            <input type="text" id="contactSubject" class="form-input" placeholder="留言主题" required>
+                        </div>
+                        <div class="form-group">
+                            <label>留言内容</label>
+                            <textarea id="contactMessage" class="form-textarea" rows="5" placeholder="请输入留言内容..." required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-full">发送留言</button>
+                    </form>
+                </div>
+                <div class="messages-section" id="messagesSection" style="display:none;">
+                    <h3 class="section-title">历史留言</h3>
+                    <div id="messagesList"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 帖子详情页 -->
+        <section class="page" id="page-post">
+            <div class="post-detail" id="postDetail">
+                <!-- 动态生成 -->
+            </div>
+        </section>
+
+        <!-- 个人页面 -->
+        <section class="page" id="page-me">
+            <div class="me-container" id="meContent">
+                <!-- JS 动态生成 -->
+            </div>
+        </section>
+        <!-- 管理员后台 -->
+        <section class="page" id="page-admin">
+            <div class="admin-container" id="adminContent">
+                <!-- JS 动态生成 -->
+            </div>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        <div class="footer-content">
+            <span class="footer-brand">RCX论坛</span>
+            <span class="footer-sep">·</span>
+            <span class="footer-version">V2.00</span>
+        </div>
+    </footer>
+
+    <!-- 发帖模态框 -->
+    <div class="modal-overlay" id="newPostModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>发布新帖</h2>
+                <button class="btn-close" id="closeNewPost">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M5 5l10 10M15 5L5 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                </button>
+            </div>
+            <form class="auth-form" id="newPostForm" style="text-align:left;">
+                <div class="form-group">
+                    <label>主题</label>
+                    <input type="text" id="postTopic" placeholder="帖子主题（如：技术分享、日常闲聊）" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label>标题</label>
+                    <input type="text" id="postTitleInput" placeholder="帖子标题" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label>内容</label>
+                    <textarea id="postContentInput" placeholder="帖子内容..." class="form-textarea" rows="6" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>分类</label>
+                    <div class="category-options">
+                        <button type="button" class="category-option active" data-category="tech">技术</button>
+                        <button type="button" class="category-option" data-category="life">生活</button>
+                        <button type="button" class="category-option" data-category="creative">创意</button>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-ghost" id="cancelNewPost">取消</button>
+                    <button type="submit" class="btn btn-primary">发布</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast 通知 -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="app.js?v=1.03"></script>
+</body>
+</html>

@@ -18,6 +18,13 @@ const state = {
     previousPage: 'home',
     searchQuery: '',
     contactMessages: JSON.parse(localStorage.getItem('contactMessages')) || [],
+    checkins: JSON.parse(localStorage.getItem('checkins')) || {},
+    points: JSON.parse(localStorage.getItem('points')) || {},
+    inventory: JSON.parse(localStorage.getItem('inventory')) || {},
+    musicUserId: JSON.parse(localStorage.getItem('musicUserId')) || {},
+    musicPlayerVisible: false,
+    mcAccounts: JSON.parse(localStorage.getItem('mcAccounts')) || {},
+    badges: JSON.parse(localStorage.getItem('badges')) || {},
     currentTeamFilter: 'all',
     currentTheme: localStorage.getItem('currentTheme') || 'dark',
 };
@@ -230,6 +237,72 @@ function saveMcBindings() {
 function saveLikes() { localStorage.setItem('likes', JSON.stringify(state.likes)); }
 function saveFavorites() { localStorage.setItem('favorites', JSON.stringify(state.favorites)); }
 function saveContactMessages() { localStorage.setItem('contactMessages', JSON.stringify(state.contactMessages)); }
+function saveCheckins() { localStorage.setItem('checkins', JSON.stringify(state.checkins)); }
+function savePoints() { localStorage.setItem('points', JSON.stringify(state.points)); }
+function saveInventory() { localStorage.setItem('inventory', JSON.stringify(state.inventory)); }
+function saveMusicUserId() { localStorage.setItem('musicUserId', JSON.stringify(state.musicUserId)); }
+function saveMcAccounts() { localStorage.setItem('mcAccounts', JSON.stringify(state.mcAccounts)); }
+function saveBadges() { localStorage.setItem('badges', JSON.stringify(state.badges)); }
+
+// ===== Minecraft 微软账号验证 =====
+async function verifyMcAccount(username) {
+    const clean = username.trim();
+    if (!clean || !/^[a-zA-Z0-9_]{3,16}$/.test(clean)) {
+        return { ok: false, msg: '用户名格式错误（3-16位字母/数字/下划线）' };
+    }
+    try {
+        const res = await fetch(`https://api.minecraftservices.com/minecraft/profile/lookup/name/${encodeURIComponent(clean)}`);
+        if (res.status === 200) {
+            const data = await res.json();
+            return { ok: true, uuid: data.id, name: data.name };
+        } else if (res.status === 404) {
+            return { ok: false, msg: '未找到该Minecraft账号，请确认用户名正确' };
+        } else {
+            return { ok: false, msg: '验证服务暂时不可用，请稍后再试' };
+        }
+    } catch (e) {
+        return { ok: false, msg: '网络请求失败，请检查网络连接' };
+    }
+}
+
+function addBadge(email, badgeId, badgeData) {
+    if (!state.badges[email]) state.badges[email] = [];
+    const exists = state.badges[email].some(b => b.id === badgeId);
+    if (!exists) {
+        state.badges[email].push({ id: badgeId, ...badgeData, time: Date.now() });
+        saveBadges();
+    }
+}
+
+function removeBadge(email, badgeId) {
+    if (!state.badges[email]) return;
+    state.badges[email] = state.badges[email].filter(b => b.id !== badgeId);
+    saveBadges();
+}
+
+function getUserBadges(email) {
+    return state.badges[email] || [];
+}
+
+function renderBadges(email) {
+    const badges = getUserBadges(email);
+    if (badges.length === 0) return '';
+    return badges.map(b => {
+        const icons = {
+            minecraft: '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="2" y="1" width="4" height="4"/><rect x="10" y="1" width="4" height="4"/><rect x="2" y="7" width="4" height="4"/><rect x="10" y="7" width="4" height="4"/><rect x="2" y="13" width="4" height="2"/><rect x="10" y="13" width="4" height="2"/></svg>',
+            premium: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1l2 5h5l-4 3 1.5 5L8 10l-4.5 4L5 9 1 6h5z" fill="currentColor"/></svg>',
+            admin: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1L1 4v3c0 5.5 3 8.5 7 10 4-1.5 7-4.5 7-10V4L8 1z" fill="currentColor"/></svg>',
+            checkin_30: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+        };
+        const colors = {
+            minecraft: '#4CAF50',
+            premium: '#FF9800',
+            admin: '#F44336',
+            checkin_30: '#03A9F4'
+        };
+        return `<span class="user-badge" style="background:${colors[b.id] || 'var(--primary)'};color:#fff;" title="${b.desc}">${icons[b.id] || ''} ${b.name}</span>`;
+    }).join('');
+}
 
 // ===== MC 用户名验证规则 =====
 function validateMcUsername(name) {
@@ -455,6 +528,13 @@ function navigateTo(page) {
         renderTeam();
     } else if (page === 'contact') {
         renderContact();
+    } else if (page === 'shop') {
+        if (!state.currentUser) {
+            showToast({ title: '请先登录', type: 'warning' });
+            navigateTo('login');
+            return;
+        }
+        renderShop();
     } else if (page === 'admin') {
         if (!state.currentUser || !state.currentUser.adminRole) {
             showToast({ title: '无权限访问', message: '仅管理员可进入后台', type: 'warning' });
@@ -666,6 +746,7 @@ function refreshCurrentPage() {
     else if (page === 'me') renderMe();
     else if (page === 'team') renderTeam();
     else if (page === 'contact') renderContact();
+    else if (page === 'shop') renderShop();
 }
 
 // ===== 渲染全部帖子（帖子页面） =====
@@ -697,6 +778,530 @@ function renderAllPosts() {
 }
 
 // ===== 渲染个人页面 =====
+// ===== 签到与积分系统 =====
+function getTodayStr() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function getCheckinData(email) {
+    return state.checkins[email] || [];
+}
+
+function hasCheckedInToday(email) {
+    const records = getCheckinData(email);
+    const today = getTodayStr();
+    return records.some(r => r.date === today);
+}
+
+function getCheckinStreak(email) {
+    const records = getCheckinData(email);
+    if (records.length === 0) return 0;
+    const sorted = records.slice().sort((a, b) => b.date.localeCompare(a.date));
+    const today = getTodayStr();
+    const yesterday = new Date(Date.now() - 86400000);
+    const yStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth()+1).padStart(2,'0')}-${String(yesterday.getDate()).padStart(2,'0')}`;
+    
+    // If last check-in is today, start counting from today
+    if (sorted[0].date === today || sorted[0].date === yStr) {
+        let streak = 0;
+        let checkDate = sorted[0].date === today ? new Date() : yesterday;
+        for (let i = 0; i < sorted.length; i++) {
+            const d = new Date(sorted[i].date);
+            if (d.toDateString() === checkDate.toDateString()) {
+                streak++;
+                checkDate = new Date(checkDate.getTime() - 86400000);
+            } else {
+                break;
+            }
+        }
+        return streak;
+    }
+    return 0;
+}
+
+function getCheckinPoints(streak) {
+    const base = 10;
+    const bonus = Math.min(streak - 1, 5) * 2;
+    return base + bonus;
+}
+
+function doCheckin() {
+    if (!state.currentUser) {
+        showToast({ title: '请先登录', type: 'warning' });
+        navigateTo('login');
+        return;
+    }
+    const email = state.currentUser.email;
+    if (hasCheckedInToday(email)) {
+        showToast({ title: '今日已签到', message: '明天再来吧', type: 'info' });
+        return;
+    }
+    
+    const today = getTodayStr();
+    const streak = getCheckinStreak(email);
+    const newStreak = streak + 1;  // Include today
+    const earned = getCheckinPoints(newStreak);
+    
+    // Record check-in
+    if (!state.checkins[email]) state.checkins[email] = [];
+    state.checkins[email].push({ date: today, time: Date.now(), points: earned });
+    saveCheckins();
+    
+    // Add points
+    if (!state.points[email]) state.points[email] = 0;
+    state.points[email] += earned;
+    savePoints();
+    
+    showToast({ title: '签到成功', message: `获得 ${earned} 积分！连续签到 ${newStreak} 天`, type: 'success' });
+    renderMe();
+}
+
+function renderCheckinCard(email) {
+    const records = getCheckinData(email);
+    const checkedToday = hasCheckedInToday(email);
+    const streak = getCheckinStreak(email);
+    const userPoints = state.points[email] || 0;
+    const totalCheckins = records.length;
+    
+    // 构建最近7天日历
+    const today = new Date();
+    let calendarHtml = '';
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date(today.getTime() - i * 86400000);
+        const dStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        const isChecked = records.some(r => r.date === dStr);
+        const isToday = i === 0;
+        const dayNames = ['日','一','二','三','四','五','六'];
+        
+        calendarHtml += `
+            <div class="checkin-cal-day ${isChecked ? 'checked' : ''} ${isToday ? 'today' : ''}">
+                <div class="checkin-cal-label">${dayNames[d.getDay()]}</div>
+                <div class="checkin-cal-icon">${isChecked ? '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' : d.getDate()}</div>
+            </div>
+        `;
+    }
+    
+    const nextPoints = getCheckinPoints(streak + 1);
+    
+    return `
+<div class="checkin-card" style="padding: 0 32px 24px;">
+    <div class="checkin-card-inner">
+        <div class="checkin-header">
+            <div class="checkin-points-display">
+                <div class="checkin-points-label">我的积分</div>
+                <div class="checkin-points-value">${userPoints}</div>
+            </div>
+            <button class="btn ${checkedToday ? 'btn-disabled' : 'btn-primary'} checkin-btn" ${checkedToday ? 'disabled' : ''} id="checkinBtn">
+                ${checkedToday ? '今日已签到' : '签到 + ' + nextPoints + '积分'}
+            </button>
+        </div>
+        <div class="checkin-stats">
+            <div class="checkin-stat">
+                <span class="checkin-stat-value">${streak}</span>
+                <span class="checkin-stat-label">连续天数</span>
+            </div>
+            <div class="checkin-stat">
+                <span class="checkin-stat-value">${totalCheckins}</span>
+                <span class="checkin-stat-label">累计签到</span>
+            </div>
+            <div class="checkin-stat">
+                <span class="checkin-stat-value">${userPoints}</span>
+                <span class="checkin-stat-label">总积分</span>
+            </div>
+        </div>
+        <div class="checkin-calendar">
+            <div class="checkin-cal-title">最近7天</div>
+            <div class="checkin-cal-grid">${calendarHtml}</div>
+        </div>
+        <div class="checkin-rules">
+            <div class="checkin-rules-title">积分规则</div>
+            <div class="checkin-rules-text">每日签到基础10积分，连续签到每天+2，最高20积分/天</div>
+        </div>
+        <div class="checkin-shop-entry" style="margin-top:16px;">
+            <button class="btn btn-primary btn-full" id="openShopBtn" style="font-size:0.65rem;">
+                积分商店
+            </button>
+        </div>
+    </div>
+</div>
+    `;
+}
+
+// ===== 补签逻辑 =====
+function doMakeupCheckin(dateStr) {
+    if (!state.currentUser) return;
+    const email = state.currentUser.email;
+    const records = getCheckinData(email);
+
+    // 不能补签今天（今天应该正常签到）
+    if (dateStr === getTodayStr()) {
+        showToast({ title: '无法补签', message: '今天请使用正常签到', type: 'warning' });
+        return;
+    }
+    // 不能补签已签到过的日期
+    if (records.some(r => r.date === dateStr)) {
+        showToast({ title: '已签到', message: '该日期已签到过', type: 'warning' });
+        return;
+    }
+    // 不能补签未来日期
+    if (dateStr > getTodayStr()) {
+        showToast({ title: '无法补签', message: '不能补签未来日期', type: 'warning' });
+        return;
+    }
+
+    // 扣除一张补签卡
+    if (!state.inventory[email]) state.inventory[email] = {};
+    if (!state.inventory[email].makeup_card) state.inventory[email].makeup_card = 0;
+    if (state.inventory[email].makeup_card <= 0) {
+        showToast({ title: '补签卡不足', message: '请先在积分商店兑换', type: 'warning' });
+        return;
+    }
+
+    state.inventory[email].makeup_card--;
+    saveInventory();
+
+    // 补签获得基础积分
+    const earned = 10;
+    state.checkins[email].push({ date: dateStr, time: Date.now(), points: earned, makeup: true });
+    saveCheckins();
+
+    if (!state.points[email]) state.points[email] = 0;
+    state.points[email] += earned;
+    savePoints();
+
+    showToast({ title: '补签成功', message: `${dateStr} 补签完成，获得 ${earned} 积分`, type: 'success' });
+    renderMe();
+}
+
+// ===== 积分商店 =====
+function renderShop() {
+    const container = document.getElementById('shopContent');
+    if (!state.currentUser) return;
+
+    const email = state.currentUser.email;
+    const userPoints = state.points[email] || 0;
+    const inv = state.inventory[email] || {};
+    const makeupCards = inv.makeup_card || 0;
+
+    // 最近14天可补签的日期
+    const records = getCheckinData(email);
+    const missedDays = [];
+    for (let i = 1; i <= 14; i++) {
+        const d = new Date(Date.now() - i * 86400000);
+        const dStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        if (!records.some(r => r.date === dStr)) {
+            missedDays.push(dStr);
+        }
+    }
+
+    container.innerHTML = `
+        <a href="#" class="back-btn" id="backFromShop">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M15.833 10H4.167M4.167 10l5.833 5.833M4.167 10l5.833-5.833" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            返回个人中心
+        </a>
+        <div class="shop-header">
+            <h2 class="section-title">积分商店</h2>
+            <div class="shop-balance">当前积分: <span class="shop-points-num">${userPoints}</span></div>
+        </div>
+
+        <div class="shop-section">
+            <div class="shop-section-title">道具</div>
+            <div class="shop-items-grid">
+                <div class="shop-item">
+                    <div class="shop-item-icon" style="background:var(--primary-dark);">
+                        <svg width="32" height="32" viewBox="0 0 16 16" fill="none"><rect x="2" y="6" width="4" height="6" fill="currentColor" opacity="0.6"/><rect x="6" y="4" width="4" height="8" fill="currentColor" opacity="0.8"/><rect x="10" y="5" width="4" height="7" fill="currentColor"/><rect x="2" y="2" width="4" height="4" fill="#4CAF50"/><rect x="6" y="1" width="4" height="3" fill="#66BB6A"/><rect x="10" y="2" width="4" height="3" fill="#388E3C"/><rect x="4" y="12" width="8" height="2" fill="#8D6E63"/></svg>
+                    </div>
+                    <div class="shop-item-info">
+                        <div class="shop-item-name">补签卡</div>
+                        <div class="shop-item-desc">补签最近14天内缺失的一天，获得10积分</div>
+                    </div>
+                    <div class="shop-item-action">
+                        <div class="shop-item-price">100 积分</div>
+                        <button class="btn ${userPoints >= 100 ? 'btn-primary' : 'btn-disabled'} shop-buy-btn" ${userPoints < 100 ? 'disabled' : ''} data-item="makeup_card">兑换</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="shop-section">
+            <div class="shop-section-title">我的背包</div>
+            <div class="shop-inventory">
+                <div class="inv-item">
+                    <div class="inv-item-name">补签卡</div>
+                    <div class="inv-item-count">x${makeupCards}</div>
+                </div>
+                ${makeupCards === 0 ? '<div class="inv-empty">背包空空如也</div>' : ''}
+            </div>
+        </div>
+
+        ${makeupCards > 0 && missedDays.length > 0 ? `
+        <div class="shop-section">
+            <div class="shop-section-title">使用补签卡</div>
+            <div class="makeup-days-grid">
+                ${missedDays.map(d => `
+                    <div class="makeup-day-item">
+                        <span class="makeup-day-date">${escapeHtml(d)}</span>
+                        <button class="btn btn-primary shop-use-btn" style="font-size:0.55rem;padding:6px 12px;" data-date="${d}">补签</button>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+        ` : ''}
+    `;
+
+    // 返回按钮
+    document.getElementById('backFromShop').addEventListener('click', (e) => {
+        e.preventDefault();
+        navigateTo('me');
+    });
+
+    // 兑换按钮
+    container.querySelectorAll('.shop-buy-btn').forEach(btn => {
+        if (btn.disabled) return;
+        btn.addEventListener('click', () => {
+            const item = btn.dataset.item;
+            if (item === 'makeup_card') {
+                if ((state.points[email] || 0) < 100) {
+                    showToast({ title: '积分不足', message: '需要100积分', type: 'warning' });
+                    return;
+                }
+                if (!state.inventory[email]) state.inventory[email] = {};
+                if (!state.inventory[email].makeup_card) state.inventory[email].makeup_card = 0;
+                state.inventory[email].makeup_card++;
+                state.points[email] -= 100;
+                saveInventory();
+                savePoints();
+                showToast({ title: '兑换成功', message: '获得1张补签卡', type: 'success' });
+                renderShop();
+            }
+        });
+    });
+
+    // 使用补签卡
+    container.querySelectorAll('.shop-use-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            doMakeupCheckin(btn.dataset.date);
+        });
+    });
+}
+
+// ===== 设置板块 =====
+function renderBadgesSection(email) {
+    const badges = getUserBadges(email);
+    const allBadges = [
+        { id: 'minecraft', name: '我的世界', desc: '已绑定微软Minecraft Java版账号', icon: 'minecraft' },
+        { id: 'checkin_30', name: '签到达人', desc: '连续签到30天', icon: 'checkin_30' },
+        { id: 'admin', name: '管理员', desc: '论坛管理员', icon: 'admin' },
+    ];
+
+    if (badges.length === 0) {
+        return '<div class="empty-state"><h3>还没有获得勋章</h3><p style="font-size:0.55rem;color:var(--text-muted);">绑定Minecraft账号或连续签到可获得勋章</p></div>';
+    }
+
+    const badgeIcons = {
+        minecraft: '<svg width="32" height="32" viewBox="0 0 16 16" fill="currentColor"><rect x="2" y="1" width="4" height="4"/><rect x="10" y="1" width="4" height="4"/><rect x="2" y="7" width="4" height="4"/><rect x="10" y="7" width="4" height="4"/><rect x="2" y="13" width="4" height="2"/><rect x="10" y="13" width="4" height="2"/></svg>',
+        checkin_30: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+        admin: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M8 1L1 4v3c0 5.5 3 8.5 7 10 4-1.5 7-4.5 7-10V4L8 1z" fill="currentColor"/></svg>'
+    };
+    const badgeColors = {
+        minecraft: '#4CAF50',
+        checkin_30: '#03A9F4',
+        admin: '#F44336'
+    };
+
+    const earnedIds = badges.map(b => b.id);
+
+    return `
+    <div class="badges-grid">
+        ${allBadges.map(b => {
+            const earned = earnedIds.includes(b.id);
+            return `
+            <div class="badge-card ${earned ? 'earned' : 'locked'}">
+                <div class="badge-icon" style="color:${badgeColors[b.id] || 'var(--text-muted)'};">
+                    ${badgeIcons[b.id] || ''}
+                </div>
+                <div class="badge-name">${b.name}</div>
+                <div class="badge-desc">${b.desc}</div>
+                ${earned ? '<div class="badge-status">已获得</div>' : '<div class="badge-status locked">未获得</div>'}
+            </div>
+            `;
+        }).join('')}
+    </div>
+    `;
+}
+
+function renderSettings(email) {
+    const boundId = state.musicUserId[email] || '';
+    const mcAccount = state.mcAccounts[email] || null;
+
+    return `
+    <!-- 音乐播放器设置 -->
+    <div class="music-settings-card" style="margin-bottom:24px;">
+        <div class="music-settings-title">音乐播放器</div>
+        <div class="music-settings-desc">绑定网易云音乐用户ID后，可在网页左下角播放你的歌单</div>
+        <div class="music-settings-form">
+            <div class="form-group">
+                <label>网易云用户ID</label>
+                <div class="input-wrapper">
+                    <input type="text" id="musicUidInput" class="form-input" placeholder="输入你的网易云用户ID（数字）" value="${escapeHtml(boundId)}">
+                </div>
+                <div class="music-settings-hint">在网易云网页版个人主页URL中查看，如 music.163.com/#/user/home?id=123456789</div>
+            </div>
+            <div class="music-settings-actions">
+                <button class="btn btn-primary" id="musicSaveBtn" style="font-size:0.65rem;padding:10px 24px;">保存绑定</button>
+                ${boundId ? `<button class="btn btn-ghost" id="musicUnbindBtn" style="font-size:0.65rem;padding:10px 24px;">解除绑定</button>` : ''}
+            </div>
+        </div>
+        ${boundId ? `
+        <div class="music-settings-player">
+            <div class="music-settings-player-label">播放器控制</div>
+            <div class="music-settings-player-actions">
+                <button class="btn btn-primary" id="musicShowBtn" style="font-size:0.65rem;padding:10px 24px;">显示播放器</button>
+            </div>
+        </div>
+        ` : ''}
+    </div>
+
+    <!-- Minecraft 账号绑定 -->
+    <div class="music-settings-card">
+        <div class="music-settings-title">Minecraft 账号绑定</div>
+        <div class="music-settings-desc">绑定你的微软Minecraft Java版账号，验证成功后可获得我的世界勋章</div>
+        <div class="music-settings-form">
+            <div class="form-group">
+                <label>Minecraft 用户名</label>
+                <div class="input-wrapper">
+                    <input type="text" id="mcBindInput" class="form-input" placeholder="输入你的Minecraft用户名" value="${mcAccount ? escapeHtml(mcAccount.name) : ''}" ${mcAccount ? 'disabled' : ''}>
+                </div>
+                <div class="music-settings-hint">3-16位字母、数字或下划线，区分大小写</div>
+            </div>
+            <div class="music-settings-actions">
+                ${mcAccount
+                    ? `<button class="btn btn-ghost" id="mcUnbindBtn" style="font-size:0.65rem;padding:10px 24px;">解除绑定</button>`
+                    : `<button class="btn btn-primary" id="mcBindBtn" style="font-size:0.65rem;padding:10px 24px;">验证并绑定</button>`
+                }
+            </div>
+            ${mcAccount ? `
+            <div class="mc-bind-success">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M14 4L6 12L2 8" stroke="#4CAF50" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span>已绑定: ${escapeHtml(mcAccount.name)}</span>
+            </div>
+            ` : ''}
+        </div>
+    </div>
+    `;
+}
+
+function initSettingsBindings() {
+    // 音乐绑定
+    const saveBtn = document.getElementById('musicSaveBtn');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', () => {
+            if (!state.currentUser) return;
+            const input = document.getElementById('musicUidInput');
+            const uid = input.value.trim();
+            if (!uid || !/^\d+$/.test(uid)) {
+                showToast({ title: '请输入有效的数字ID', type: 'warning' });
+                return;
+            }
+            state.musicUserId[state.currentUser.email] = uid;
+            saveMusicUserId();
+            showToast({ title: '绑定成功', message: '播放器已更新', type: 'success' });
+            showMusicPlayer(uid);
+        });
+    }
+
+    const musicUnbindBtn = document.getElementById('musicUnbindBtn');
+    if (musicUnbindBtn) {
+        musicUnbindBtn.addEventListener('click', () => {
+            if (!state.currentUser) return;
+            delete state.musicUserId[state.currentUser.email];
+            saveMusicUserId();
+            hideMusicPlayer();
+            showToast({ title: '已解除绑定', type: 'success' });
+            renderMe();
+        });
+    }
+
+    const showBtn = document.getElementById('musicShowBtn');
+    if (showBtn) {
+        showBtn.addEventListener('click', () => {
+            const uid = state.musicUserId[state.currentUser.email];
+            if (uid) showMusicPlayer(uid);
+        });
+    }
+
+    // MC 账号绑定
+    const mcBindBtn = document.getElementById('mcBindBtn');
+    if (mcBindBtn) {
+        mcBindBtn.addEventListener('click', async () => {
+            if (!state.currentUser) return;
+            const input = document.getElementById('mcBindInput');
+            const username = input.value.trim();
+            if (!username) return;
+
+            mcBindBtn.disabled = true;
+            mcBindBtn.textContent = '验证中...';
+
+            const result = await verifyMcAccount(username);
+
+            mcBindBtn.disabled = false;
+            mcBindBtn.textContent = '验证并绑定';
+
+            if (result.ok) {
+                state.mcAccounts[state.currentUser.email] = { name: result.name, uuid: result.uuid };
+                saveMcAccounts();
+                addBadge(state.currentUser.email, 'minecraft', { name: '我的世界', desc: '已绑定微软Minecraft Java版账号' });
+                showToast({ title: '绑定成功', message: `账号 ${result.name} 验证通过，获得我的世界勋章`, type: 'success' });
+                renderMe();
+            } else {
+                showToast({ title: '验证失败', message: result.msg, type: 'warning' });
+            }
+        });
+    }
+
+    const mcUnbindBtn = document.getElementById('mcUnbindBtn');
+    if (mcUnbindBtn) {
+        mcUnbindBtn.addEventListener('click', () => {
+            if (!state.currentUser) return;
+            delete state.mcAccounts[state.currentUser.email];
+            saveMcAccounts();
+            removeBadge(state.currentUser.email, 'minecraft');
+            showToast({ title: '已解除绑定', type: 'success' });
+            renderMe();
+        });
+    }
+}
+
+function showMusicPlayer(uid) {
+    const player = document.getElementById('musicPlayer');
+    const frame = document.getElementById('musicFrame');
+    const title = document.getElementById('musicPlayerTitle');
+    if (!player || !frame) return;
+
+    // 网易云外链播放器 - 播放用户喜欢的歌单
+    frame.src = `https://music.163.com/outchain/player?type=playlist&id=${uid}&auto=0&height=32`;
+    title.textContent = `歌单 #${uid}`;
+    player.classList.remove('hidden');
+    frame.classList.remove('hidden');
+    state.musicPlayerVisible = true;
+
+    // 绑定关闭按钮
+    const closeBtn = document.getElementById('musicClose');
+    if (closeBtn) {
+        closeBtn.onclick = hideMusicPlayer;
+    }
+}
+
+function hideMusicPlayer() {
+    const player = document.getElementById('musicPlayer');
+    const frame = document.getElementById('musicFrame');
+    if (player) player.classList.add('hidden');
+    if (frame) { frame.src = ''; frame.classList.add('hidden'); }
+    state.musicPlayerVisible = false;
+}
+
+// ===== 个人页面 =====
 function renderMe() {
     const container = document.getElementById('meContent');
     if (!state.currentUser) {
@@ -716,72 +1321,106 @@ function renderMe() {
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M15.833 10H4.167M4.167 10l5.833 5.833M4.167 10l5.833-5.833" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             返回首页
         </a>
-        <div class="profile-card">
-            <div class="profile-banner"></div>
-            <div class="profile-info">
-                <div class="profile-avatar-large">${user.username.charAt(0).toUpperCase()}</div>
-                <div class="profile-details">
-                    <div class="profile-name-section">
-                        <h2>${escapeHtml(user.username)}</h2>
-                        <p class="profile-email">${escapeHtml(user.email)}</p>
+
+        <!-- 板块1: 个人数据 -->
+        <div class="me-section">
+            <div class="me-section-title">个人数据</div>
+            <div class="me-section-divider"></div>
+            <div class="profile-card">
+                <div class="profile-banner"></div>
+                <div class="profile-info">
+                    <div class="profile-avatar-large">${user.username.charAt(0).toUpperCase()}</div>
+                    <div class="profile-details">
+                        <div class="profile-name-section">
+                            <h2>${escapeHtml(user.username)}</h2>
+                            <p class="profile-email">${escapeHtml(user.email)}</p>
+                            <div class="profile-badges-row">${renderBadges(user.email)}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="profile-info-grid" style="padding: 0 32px 32px;">
+                    <div class="profile-info-item">
+                        <div class="profile-info-label">注册时间</div>
+                        <div class="profile-info-value accent">${user.registerTime ? new Date(user.registerTime).toLocaleDateString('zh-CN') : '未知'}</div>
+                    </div>
+                    <div class="profile-info-item">
+                        <div class="profile-info-label">发布帖子</div>
+                        <div class="profile-info-value">${userPosts.length}</div>
+                    </div>
+                    <div class="profile-info-item">
+                        <div class="profile-info-label">收藏帖子</div>
+                        <div class="profile-info-value">${favPosts.length}</div>
+                    </div>
+                    <div class="profile-info-item">
+                        <div class="profile-info-label">点赞帖子</div>
+                        <div class="profile-info-value">${likedPosts.length}</div>
                     </div>
                 </div>
             </div>
-            <div class="profile-info-grid" style="padding: 0 32px 32px;">
-                <div class="profile-info-item">
-                    <div class="profile-info-label">论坛注册时间</div>
-                    <div class="profile-info-value accent">${user.registerTime ? new Date(user.registerTime).toLocaleDateString('zh-CN') : '未知'}</div>
+            ${user.mcName ? `
+            <div style="padding: 0 32px 16px;">
+                <div style="padding: 16px; background: var(--surface); border: 2px solid var(--border);">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor"><rect x="2" y="1" width="4" height="4"/><rect x="10" y="1" width="4" height="4"/><rect x="2" y="7" width="4" height="4"/><rect x="10" y="7" width="4" height="4"/><rect x="2" y="13" width="4" height="2"/><rect x="10" y="13" width="4" height="2"/></svg>
+                        <span style="color:var(--text-secondary);font-size:0.65rem;">Minecraft: <strong style="color:var(--primary-light);">${escapeHtml(user.mcName)}</strong></span>
+                    </div>
                 </div>
-                <div class="profile-info-item">
-                    <div class="profile-info-label">发布帖子</div>
-                    <div class="profile-info-value">${userPosts.length}</div>
+            </div>
+            ` : ''}
+            ${user.adminRole ? `
+            <div style="padding: 0 32px 24px;">
+                <button class="btn btn-primary btn-full" id="meAdminBtn" style="max-width:280px;font-size:0.65rem;">
+                    进入管理后台
+                </button>
+            </div>
+            ` : ''}
+        </div>
+
+        <!-- 板块2: 签到与积分 -->
+        <div class="me-section">
+            <div class="me-section-title">签到与积分</div>
+            <div class="me-section-divider"></div>
+            ${renderCheckinCard(user.email)}
+        </div>
+
+        <!-- 板块3: 我的帖子 -->
+        <div class="me-section">
+            <div class="me-section-title">我的帖子</div>
+            <div class="me-section-divider"></div>
+            <div style="padding: 0 32px 16px;">
+                <div class="me-tabs">
+                    <button class="me-tab active" data-tab="my-posts">我的帖子 (${userPosts.length})</button>
+                    <button class="me-tab" data-tab="my-likes">点赞 (${likedPosts.length})</button>
+                    <button class="me-tab" data-tab="my-favs">收藏 (${favPosts.length})</button>
                 </div>
-                <div class="profile-info-item">
-                    <div class="profile-info-label">收藏帖子</div>
-                    <div class="profile-info-value">${favPosts.length}</div>
-                </div>
-                <div class="profile-info-item">
-                    <div class="profile-info-label">点赞帖子</div>
-                    <div class="profile-info-value">${likedPosts.length}</div>
-                </div>
+            </div>
+            <div class="me-tab-content active" id="tab-my-posts" style="padding: 0 32px 24px;">
+                ${userPosts.length > 0 ? userPosts.map(p => createPostCard(p)).join('') : '<div class="empty-state"><h3>还没有发布帖子</h3></div>'}
+            </div>
+            <div class="me-tab-content" id="tab-my-likes" style="padding: 0 32px 24px;">
+                ${likedPosts.length > 0 ? likedPosts.map(p => createPostCard(p)).join('') : '<div class="empty-state"><h3>还没有点赞帖子</h3></div>'}
+            </div>
+            <div class="me-tab-content" id="tab-my-favs" style="padding: 0 32px 24px;">
+                ${favPosts.length > 0 ? favPosts.map(p => createPostCard(p)).join('') : '<div class="empty-state"><h3>还没有收藏帖子</h3></div>'}
             </div>
         </div>
 
-        // MC绑定显示
-        ${user.mcName ? `
-<div style="padding: 0 32px 16px;">
-    <div style="padding: 16px; background: var(--surface); border-radius: var(--radius-sm); border: 1px solid var(--glass-border); backdrop-filter: var(--blur);">
-        <div style="display:flex;align-items:center;gap:10px;">
-            <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor"><rect x="2" y="1" width="4" height="4" rx="0.5"/><rect x="10" y="1" width="4" height="4" rx="0.5"/><rect x="2" y="7" width="4" height="4" rx="0.5"/><rect x="10" y="7" width="4" height="4" rx="0.5"/><rect x="2" y="13" width="4" height="2" rx="0.5"/><rect x="10" y="13" width="4" height="2" rx="0.5"/></svg>
-            <span style="color:var(--text-secondary);font-size:0.9rem;">Minecraft: <strong style="color:var(--primary-light);">${user.mcName}</strong></span>
-        </div>
-    </div>
-</div>
-` : ''}
-
-        // 管理员入口
-        ${user.adminRole ? `
-<div style="padding: 0 32px 24px;">
-    <button class="btn btn-primary btn-full" id="meAdminBtn" style="max-width:280px;">
-        进入管理后台
-    </button>
-</div>
-` : ''}
-
-        <div class="me-tabs">
-            <button class="me-tab active" data-tab="my-posts">我的帖子 (${userPosts.length})</button>
-            <button class="me-tab" data-tab="my-likes">点赞 (${likedPosts.length})</button>
-            <button class="me-tab" data-tab="my-favs">收藏 (${favPosts.length})</button>
+        <!-- 板块4: 我的勋章 -->
+        <div class="me-section">
+            <div class="me-section-title">我的勋章</div>
+            <div class="me-section-divider"></div>
+            <div style="padding: 0 32px 32px;">
+                ${renderBadgesSection(user.email)}
+            </div>
         </div>
 
-        <div class="me-tab-content active" id="tab-my-posts">
-            ${userPosts.length > 0 ? userPosts.map(p => createPostCard(p)).join('') : '<div class="empty-state"><h3>还没有发布帖子</h3></div>'}
-        </div>
-        <div class="me-tab-content" id="tab-my-likes">
-            ${likedPosts.length > 0 ? likedPosts.map(p => createPostCard(p)).join('') : '<div class="empty-state"><h3>还没有点赞帖子</h3></div>'}
-        </div>
-        <div class="me-tab-content" id="tab-my-favs">
-            ${favPosts.length > 0 ? favPosts.map(p => createPostCard(p)).join('') : '<div class="empty-state"><h3>还没有收藏帖子</h3></div>'}
+        <!-- 板块5: 设置 -->
+        <div class="me-section">
+            <div class="me-section-title">设置</div>
+            <div class="me-section-divider"></div>
+            <div style="padding: 0 32px 32px;">
+                ${renderSettings(user.email)}
+            </div>
         </div>
     `;
 
@@ -808,6 +1447,24 @@ function renderMe() {
             navigateTo('admin');
         });
     }
+
+    // 绑定签到按钮
+    const checkinBtn = document.getElementById('checkinBtn');
+    if (checkinBtn && !checkinBtn.disabled) {
+        checkinBtn.addEventListener('click', doCheckin);
+    }
+
+    // 绑定积分商店入口
+    const openShopBtn = document.getElementById('openShopBtn');
+    if (openShopBtn) {
+        openShopBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            navigateTo('shop');
+        });
+    }
+
+    // 绑定设置
+    initSettingsBindings();
 
     bindPostCardEvents();
 }
@@ -2095,6 +2752,22 @@ function renderUserTable(users, canDelete) {
 
 // ===== 导航链接 =====
 function initNavLinks() {
+    // 汉堡菜单切换
+    const hamburger = document.getElementById('navHamburger');
+    if (hamburger) {
+        hamburger.addEventListener('click', () => {
+            const navLinks = document.querySelector('.nav-links');
+            navLinks.classList.toggle('mobile-open');
+        });
+    }
+
+    // 点击导航链接后关闭移动菜单
+    document.querySelectorAll('.nav-link').forEach(link => {
+        link.addEventListener('click', () => {
+            document.querySelector('.nav-links').classList.remove('mobile-open');
+        });
+    });
+
     document.querySelectorAll('.nav-link').forEach(link => {
         link.addEventListener('click', (e) => {
             e.preventDefault();
@@ -2159,6 +2832,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 渲染帖子
     renderHome();
+
+    // 恢复音乐播放器
+    if (state.currentUser && state.musicUserId[state.currentUser.email]) {
+        showMusicPlayer(state.musicUserId[state.currentUser.email]);
+    }
 
     // 首页数字动画
     setTimeout(animateNumbers, 500);

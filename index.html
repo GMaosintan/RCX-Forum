@@ -29,6 +29,7 @@
                 <span>RCX论坛</span>
             </div>
         </div>
+        <button class="nav-hamburger" id="navHamburger">☰</button>
         <div class="nav-links">
             <a href="#" class="nav-link active" data-page="home">主页</a>
             <a href="#" class="nav-link" data-page="posts">帖子</a>
@@ -306,6 +307,13 @@
             </div>
         </section>
 
+        <!-- 积分商店 -->
+        <section class="page" id="page-shop">
+            <div class="shop-container" id="shopContent">
+                <!-- JS 动态生成 -->
+            </div>
+        </section>
+
         <!-- 联系页面 -->
         <section class="page" id="page-contact">
             <div class="contact-container">
@@ -420,6 +428,19 @@
     <!-- Toast 通知 -->
     <div class="toast-container" id="toastContainer"></div>
 
-    <script src="app.js?v=1.03"></script>
+    <!-- 网易云音乐播放器 -->
+    <div class="music-player hidden" id="musicPlayer">
+        <div class="music-player-header">
+            <span class="music-player-label">♫</span>
+            <span class="music-player-title" id="musicPlayerTitle">我的歌单</span>
+        </div>
+        <div class="music-player-controls">
+            <button class="music-btn" id="musicToggle" title="播放/暂停">▶</button>
+            <button class="music-btn" id="musicClose" title="关闭播放器">✕</button>
+        </div>
+        <iframe id="musicFrame" class="music-frame hidden" allow="autoplay" frameborder="0"></iframe>
+    </div>
+
+    <script src="app.js?v=2.00"></script>
 </body>
 </html>

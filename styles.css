@@ -79,10 +79,21 @@ body {
     transition: var(--transition);
 }
 
+.nav-hamburger {
+    display: none;
+    background: none;
+    border: 2px solid var(--border);
+    color: var(--text);
+    padding: 6px 8px;
+    cursor: pointer;
+    font-size: 1.2rem;
+    line-height: 1;
+}
+
 .navbar.scrolled {
     background: rgba(15, 15, 26, 0.85);
-    backdrop-filter: var(--blur-heavy);
-    -webkit-backdrop-filter: var(--blur-heavy);
+/*     backdrop-filter: var(--blur-heavy); */
+/*     -webkit-backdrop-filter: var(--blur-heavy); */
     box-shadow: var(--shadow-glass);
 }
 
@@ -140,7 +151,7 @@ body {
     background: linear-gradient(90deg, var(--primary), var(--secondary));
     transition: var(--transition);
     transform: translateX(-50%);
-    border-radius: 2px;
+    border-radius: 0;
 }
 
 .nav-link:hover::after,
@@ -194,7 +205,7 @@ body {
     background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
     color: white;
     box-shadow: 4px 4px 0 rgba(0,0,0,0.5);
-    backdrop-filter: blur(10px);
+/*     backdrop-filter: blur(10px); */
     transition: var(--transition);
 }
 
@@ -207,7 +218,7 @@ body {
     background: rgba(255,255,255,0.03);
     color: var(--text-secondary);
     border: 1px solid var(--border);
-    backdrop-filter: blur(10px);
+/*     backdrop-filter: blur(10px); */
 }
 
 .btn-ghost:hover {
@@ -268,8 +279,8 @@ body {
     top: calc(100% + 12px);
     right: 0;
     background: rgba(22, 22, 42, 0.7);
-    backdrop-filter: blur(40px) saturate(180%);
-    -webkit-backdrop-filter: blur(40px) saturate(180%);
+/*     backdrop-filter: blur(40px) saturate(180%); */
+/*     -webkit-backdrop-filter: blur(40px) saturate(180%); */
     border: 1px solid rgba(255,255,255,0.12);
     border-radius: var(--radius-sm);
     padding: 8px;
@@ -294,7 +305,7 @@ body {
     padding: 10px 16px;
     color: var(--text-secondary);
     text-decoration: none;
-    border-radius: 6px;
+    border-radius: 0;
     transition: var(--transition);
     font-size: 0.9rem;
 }
@@ -461,7 +472,7 @@ body {
     width: 40px;
     height: 3px;
     background: linear-gradient(90deg, var(--primary), var(--secondary));
-    border-radius: 3px;
+    border-radius: 0;
 }
 
 .forum-actions {
@@ -475,8 +486,8 @@ body {
     display: flex;
     gap: 4px;
     background: rgba(22, 22, 42, 0.5);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+/*     backdrop-filter: blur(20px); */
+/*     -webkit-backdrop-filter: blur(20px); */
     padding: 4px;
     border-radius: var(--radius-sm);
     border: 1px solid rgba(255,255,255,0.1);
@@ -489,7 +500,7 @@ body {
     color: var(--text-secondary);
     font-size: 0.85rem;
     font-weight: 500;
-    border-radius: 6px;
+    border-radius: 0;
     cursor: pointer;
     transition: var(--transition);
     font-family: inherit;
@@ -585,7 +596,7 @@ body {
 
 .post-category {
     padding: 4px 12px;
-    border-radius: 20px;
+    border-radius: 0;
     font-size: 0.75rem;
     font-weight: 600;
     text-transform: uppercase;
@@ -618,7 +629,7 @@ body {
     padding: 4px 12px;
     background: rgba(99, 102, 241, 0.1);
     color: var(--primary-light);
-    border-radius: 20px;
+    border-radius: 0;
     font-size: 0.78rem;
     font-weight: 500;
     margin-bottom: 8px;
@@ -646,7 +657,7 @@ body {
     padding: 2px 8px;
     background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(239, 68, 68, 0.15));
     color: #f59e0b;
-    border-radius: 4px;
+    border-radius: 0;
     font-size: 0.72rem;
     font-weight: 600;
     letter-spacing: 0.5px;
@@ -723,8 +734,8 @@ body {
 
 .auth-card {
     background: rgba(22, 22, 42, 0.5);
-    backdrop-filter: blur(60px) saturate(200%);
-    -webkit-backdrop-filter: blur(60px) saturate(200%);
+/*     backdrop-filter: blur(60px) saturate(200%); */
+/*     -webkit-backdrop-filter: blur(60px) saturate(200%); */
     border: 1px solid rgba(255,255,255,0.12);
     border-radius: var(--radius);
     padding: 40px;
@@ -880,7 +891,7 @@ textarea::placeholder {
     width: 20px;
     height: 20px;
     border: 2px solid var(--border);
-    border-radius: 5px;
+    border-radius: 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1212,8 +1223,8 @@ textarea::placeholder {
 
 .toast {
     background: rgba(22, 22, 42, 0.75);
-    backdrop-filter: blur(40px) saturate(180%);
-    -webkit-backdrop-filter: blur(40px) saturate(180%);
+/*     backdrop-filter: blur(40px) saturate(180%); */
+/*     -webkit-backdrop-filter: blur(40px) saturate(180%); */
     border: 1px solid rgba(255,255,255,0.12);
     border-radius: var(--radius-sm);
     padding: 16px 20px;
@@ -1533,7 +1544,7 @@ textarea::placeholder {
     width: 36px;
     height: 36px;
     background: linear-gradient(135deg, #5b8731, #8B6914);
-    border-radius: 4px;
+    border-radius: 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1561,7 +1572,7 @@ textarea::placeholder {
     background: rgba(91, 135, 49, 0.15);
     color: #7cb342;
     padding: 4px 10px;
-    border-radius: 20px;
+    border-radius: 0;
     font-size: 0.75rem;
     font-weight: 600;
 }
@@ -1581,7 +1592,7 @@ textarea::placeholder {
     font-family: 'Courier New', monospace;
     margin-left: 4px;
     padding: 2px 7px;
-    border-radius: 4px;
+    border-radius: 0;
     background: var(--badge-bg, rgba(124,179,66,0.12));
     opacity: 0.9;
     transition: var(--transition);
@@ -1745,8 +1756,8 @@ textarea::placeholder {
     top: 104px;
     align-self: flex-start;
     background: rgba(22, 22, 42, 0.5);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+/*     backdrop-filter: blur(20px); */
+/*     -webkit-backdrop-filter: blur(20px); */
     border: 1px solid rgba(255,255,255,0.12);
     border-radius: var(--radius);
     padding: 24px 16px;
@@ -1874,8 +1885,8 @@ textarea::placeholder {
 
 .admin-stat-card {
     background: rgba(22, 22, 42, 0.5);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+/*     backdrop-filter: blur(20px); */
+/*     -webkit-backdrop-filter: blur(20px); */
     border: 1px solid rgba(255,255,255,0.12);
     border-radius: var(--radius);
     padding: 20px;
@@ -1996,7 +2007,7 @@ textarea::placeholder {
     background: rgba(239, 68, 68, 0.1);
     color: #ef4444;
     border: 1px solid rgba(239, 68, 68, 0.2);
-    border-radius: 6px;
+    border-radius: 0;
     font-size: 0.8rem;
     font-weight: 500;
     cursor: pointer;
@@ -2025,7 +2036,7 @@ textarea::placeholder {
 .admin-role-badge-sm {
     display: inline-block;
     padding: 3px 10px;
-    border-radius: 20px;
+    border-radius: 0;
     font-size: 0.75rem;
     font-weight: 600;
     background: var(--admin-bg);
@@ -2038,7 +2049,7 @@ textarea::placeholder {
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(4px);
+/*     backdrop-filter: blur(4px); */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2167,6 +2178,29 @@ textarea::placeholder {
 
     .nav-links {
         display: none;
+    }
+
+    .nav-hamburger {
+        display: block;
+    }
+
+    .nav-links.mobile-open {
+        display: flex;
+        flex-direction: column;
+        position: absolute;
+        top: 72px;
+        left: 0;
+        right: 0;
+        background: var(--bg-elevated);
+        border-bottom: 2px solid var(--primary);
+        padding: 16px;
+        gap: 8px;
+        z-index: 999;
+    }
+
+    .nav-links.mobile-open .nav-link {
+        padding: 12px 16px;
+        font-size: 0.7rem;
     }
 
     .hero {
@@ -2505,8 +2539,8 @@ textarea::placeholder {
     width: 100%;
     padding: 10px 16px 10px 42px;
     background: rgba(37, 37, 66, 0.4);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+/*     backdrop-filter: blur(10px); */
+/*     -webkit-backdrop-filter: blur(10px); */
     border: 1px solid rgba(255,255,255,0.1);
     border-radius: var(--radius-sm);
     color: var(--text);
@@ -2536,8 +2570,8 @@ textarea::placeholder {
     display: flex;
     gap: 4px;
     background: rgba(22, 22, 42, 0.5);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+/*     backdrop-filter: blur(20px); */
+/*     -webkit-backdrop-filter: blur(20px); */
     padding: 4px;
     border-radius: var(--radius-sm);
     border: 1px solid rgba(255,255,255,0.1);
@@ -2552,7 +2586,7 @@ textarea::placeholder {
     color: var(--text-secondary);
     font-size: 0.85rem;
     font-weight: 500;
-    border-radius: 6px;
+    border-radius: 0;
     cursor: pointer;
     transition: var(--transition);
     font-family: inherit;
@@ -2581,8 +2615,8 @@ textarea::placeholder {
     right: 0;
     bottom: 0;
     background: rgba(0,0,0,0.5);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+/*     backdrop-filter: blur(8px); */
+/*     -webkit-backdrop-filter: blur(8px); */
     z-index: 2000;
     display: none;
     align-items: center;
@@ -2596,8 +2630,8 @@ textarea::placeholder {
 
 .modal-card {
     background: rgba(22, 22, 42, 0.7);
-    backdrop-filter: blur(60px) saturate(200%);
-    -webkit-backdrop-filter: blur(60px) saturate(200%);
+/*     backdrop-filter: blur(60px) saturate(200%); */
+/*     -webkit-backdrop-filter: blur(60px) saturate(200%); */
     border: 1px solid rgba(255,255,255,0.12);
     border-radius: var(--radius);
     width: 100%;
@@ -2647,7 +2681,7 @@ textarea::placeholder {
     padding: 6px 14px;
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 20px;
+    border-radius: 0;
     color: var(--text-secondary);
     font-size: 0.82rem;
     font-weight: 500;
@@ -2683,8 +2717,8 @@ textarea::placeholder {
     width: 100%;
     padding: 12px 16px;
     background: rgba(37, 37, 66, 0.4);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+/*     backdrop-filter: blur(10px); */
+/*     -webkit-backdrop-filter: blur(10px); */
     border: 1px solid rgba(255,255,255,0.1);
     border-radius: var(--radius-sm);
     color: var(--text);
@@ -2703,8 +2737,8 @@ textarea::placeholder {
     width: 100%;
     padding: 12px 16px;
     background: rgba(37, 37, 66, 0.4);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+/*     backdrop-filter: blur(10px); */
+/*     -webkit-backdrop-filter: blur(10px); */
     border: 1px solid rgba(255,255,255,0.1);
     border-radius: var(--radius-sm);
     color: var(--text);
@@ -2779,17 +2813,13 @@ textarea::placeholder {
     from {
         opacity: 0;
         transform: translateY(20px) scale(0.97);
-        backdrop-filter: blur(0px);
+/*         backdrop-filter: blur(0px); */
     }
     to {
         opacity: 1;
         transform: translateY(0) scale(1);
-        backdrop-filter: var(--blur);
+/*         backdrop-filter: var(--blur); */
     }
-}
-
-.page.active {
-    animation: glassFadeIn 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
 }
 
 /* 按钮按下弹性效果 */
@@ -2822,8 +2852,8 @@ textarea::placeholder {
 }
 ::-webkit-scrollbar-thumb {
     background: rgba(255,255,255,0.1);
-    border-radius: 4px;
-    backdrop-filter: blur(10px);
+    border-radius: 0;
+/*     backdrop-filter: blur(10px); */
 }
 ::-webkit-scrollbar-thumb:hover {
     background: rgba(255,255,255,0.2);
@@ -2848,10 +2878,11 @@ textarea::placeholder {
 
 .footer-brand {
     font-weight: 600;
-    background: linear-gradient(135deg, var(--primary), var(--secondary));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    /* background: linear-gradient(135deg, var(--primary), var(--secondary)); */
+    /* -webkit-background-clip: text; */
+    /* -webkit-text-fill-color: transparent; */
+    /* background-clip: text; */
+    color: var(--primary-light);
 }
 
 .footer-sep {
@@ -2865,7 +2896,7 @@ textarea::placeholder {
     padding: 2px 10px;
     background: var(--surface);
     border: 1px solid var(--glass-border);
-    border-radius: 6px;
+    border-radius: 0;
     font-size: 0.78rem;
     letter-spacing: 0.5px;
 }
@@ -2929,8 +2960,8 @@ a, button {
 
 .config-card {
     background: var(--bg-card);
-    backdrop-filter: var(--blur);
-    -webkit-backdrop-filter: var(--blur);
+/*     backdrop-filter: var(--blur); */
+/*     -webkit-backdrop-filter: var(--blur); */
     border: 1px solid var(--glass-border);
     border-radius: var(--radius);
     padding: 24px;
@@ -3012,8 +3043,8 @@ a, button {
     text-align: center;
     padding: 16px 24px;
     background: var(--bg-card);
-    backdrop-filter: var(--blur);
-    -webkit-backdrop-filter: var(--blur);
+/*     backdrop-filter: var(--blur); */
+/*     -webkit-backdrop-filter: var(--blur); */
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-sm);
     min-width: 120px;
@@ -3047,8 +3078,8 @@ a, button {
 
 .team-card {
     background: var(--bg-card);
-    backdrop-filter: var(--blur);
-    -webkit-backdrop-filter: var(--blur);
+/*     backdrop-filter: var(--blur); */
+/*     -webkit-backdrop-filter: var(--blur); */
     border: 1px solid var(--glass-border);
     border-radius: var(--radius);
     padding: 32px 24px;
@@ -3103,7 +3134,7 @@ a, button {
     display: inline-block;
     padding: 4px 12px;
     background: var(--surface);
-    border-radius: 20px;
+    border-radius: 0;
     font-size: 0.75rem;
     color: var(--primary-light);
     border: 1px solid rgba(99, 102, 241, 0.2);
@@ -3141,107 +3172,6 @@ a, button {
     font-size: 1rem;
 }
 
-/* ===== 作品页面 ===== */
-.works-container {
-    max-width: 1100px;
-    margin: 0 auto;
-    padding: 120px 32px 64px;
-}
-
-.works-header {
-    text-align: center;
-    margin-bottom: 40px;
-}
-
-.works-filters {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin-bottom: 32px;
-    flex-wrap: wrap;
-}
-
-.works-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 24px;
-}
-
-.work-card {
-    background: var(--bg-card);
-    backdrop-filter: var(--blur);
-    -webkit-backdrop-filter: var(--blur);
-    border: 1px solid var(--glass-border);
-    border-radius: var(--radius);
-    overflow: hidden;
-    cursor: pointer;
-    transition: var(--transition-slow);
-}
-
-.work-card:hover {
-    transform: translateY(-4px) scale(1.01);
-    box-shadow: var(--shadow-glass);
-}
-
-.work-card-banner {
-    height: 180px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-}
-
-.work-card-banner svg {
-    width: 48px;
-    height: 48px;
-    color: rgba(255,255,255,0.5);
-}
-
-.work-card-body {
-    padding: 20px 24px 24px;
-}
-
-.work-card-title {
-    font-size: 1.05rem;
-    font-weight: 600;
-    margin-bottom: 8px;
-}
-
-.work-card-desc {
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-    line-height: 1.6;
-    margin-bottom: 16px;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-.work-card-meta {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.work-card-author {
-    font-size: 0.82rem;
-    color: var(--text-muted);
-}
-
-.work-card-tags {
-    display: flex;
-    gap: 6px;
-}
-
-.work-tag {
-    padding: 3px 10px;
-    background: var(--surface);
-    border-radius: 12px;
-    font-size: 0.72rem;
-    color: var(--text-secondary);
-}
-
 /* ===== 联系页面 ===== */
 .contact-container {
     max-width: 900px;
@@ -3267,8 +3197,8 @@ a, button {
     gap: 16px;
     padding: 20px;
     background: var(--bg-card);
-    backdrop-filter: var(--blur);
-    -webkit-backdrop-filter: var(--blur);
+/*     backdrop-filter: var(--blur); */
+/*     -webkit-backdrop-filter: var(--blur); */
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-sm);
     margin-bottom: 16px;
@@ -3292,8 +3222,8 @@ a, button {
 
 .contact-form {
     background: var(--bg-card);
-    backdrop-filter: var(--blur);
-    -webkit-backdrop-filter: var(--blur);
+/*     backdrop-filter: var(--blur); */
+/*     -webkit-backdrop-filter: var(--blur); */
     border: 1px solid var(--glass-border);
     border-radius: var(--radius);
     padding: 28px;
@@ -3317,8 +3247,8 @@ a, button {
 
 .message-card {
     background: var(--bg-card);
-    backdrop-filter: var(--blur);
-    -webkit-backdrop-filter: var(--blur);
+/*     backdrop-filter: var(--blur); */
+/*     -webkit-backdrop-filter: var(--blur); */
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-sm);
     padding: 20px;
@@ -3365,7 +3295,122 @@ a, button {
     .team-grid {
         grid-template-columns: 1fr;
     }
-    .works-grid {
-        grid-template-columns: 1fr;
-    }
+}
+
+/* ===== 签到与积分 ===== */
+.checkin-card-inner {
+    background: var(--bg-elevated);
+    border: 2px solid var(--border);
+    padding: 24px;
+    box-shadow: var(--shadow);
+}
+.checkin-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 16px; }
+.checkin-points-display { display: flex; flex-direction: column; gap: 4px; }
+.checkin-points-label { font-size: 0.6rem; color: var(--text-muted); }
+.checkin-points-value { font-size: 1.8rem; font-weight: 700; color: var(--secondary); }
+.checkin-btn { font-size: 0.7rem; padding: 12px 24px; min-width: 180px; }
+.checkin-btn:disabled, .btn-disabled { background: var(--surface); color: var(--text-muted); cursor: not-allowed; box-shadow: none; border: 2px solid var(--border); }
+.checkin-stats { display: flex; gap: 0; margin-bottom: 20px; border: 2px solid var(--border); }
+.checkin-stat { flex: 1; text-align: center; padding: 12px 8px; border-right: 2px solid var(--border); }
+.checkin-stat:last-child { border-right: none; }
+.checkin-stat-value { display: block; font-size: 1.2rem; font-weight: 700; color: var(--primary-light); }
+.checkin-stat-label { display: block; font-size: 0.55rem; color: var(--text-muted); margin-top: 4px; }
+.checkin-calendar { margin-bottom: 16px; }
+.checkin-cal-title { font-size: 0.6rem; color: var(--text-secondary); margin-bottom: 8px; }
+.checkin-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.checkin-cal-day { text-align: center; padding: 8px 4px; border: 2px solid var(--border); background: var(--bg); }
+.checkin-cal-day.checked { background: var(--primary-dark); border-color: var(--primary); }
+.checkin-cal-day.today { border-color: var(--secondary); }
+.checkin-cal-day.checked.today { background: var(--primary-dark); border-color: var(--secondary); }
+.checkin-cal-label { font-size: 0.5rem; color: var(--text-muted); }
+.checkin-cal-day.checked .checkin-cal-label { color: rgba(255,255,255,0.7); }
+.checkin-cal-icon { font-size: 0.75rem; margin-top: 4px; color: var(--text-secondary); }
+.checkin-cal-day.checked .checkin-cal-icon { color: #fff; }
+.checkin-cal-day.today .checkin-cal-icon { color: var(--secondary); }
+.checkin-rules { padding: 12px; background: var(--bg); border: 2px solid var(--border); }
+.checkin-rules-title { font-size: 0.6rem; color: var(--primary-light); margin-bottom: 4px; }
+.checkin-rules-text { font-size: 0.55rem; color: var(--text-muted); line-height: 1.8; }
+.checkin-shop-entry { margin-top: 16px; }
+@media (max-width: 768px) {
+    .checkin-header { flex-direction: column; align-items: stretch; text-align: center; }
+    .checkin-btn { width: 100%; }
+}
+
+/* ===== 积分商店 ===== */
+.shop-container { max-width: 800px; margin: 0 auto; padding: 120px 32px 64px; }
+.shop-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; flex-wrap: wrap; gap: 12px; }
+.shop-balance { font-size: 0.7rem; color: var(--text-secondary); }
+.shop-points-num { font-size: 1.2rem; color: var(--secondary); font-weight: 700; }
+.shop-section { margin-bottom: 32px; }
+.shop-section-title { font-size: 0.75rem; color: var(--primary-light); margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid var(--border); }
+.shop-items-grid { display: flex; flex-direction: column; gap: 12px; }
+.shop-item { display: flex; align-items: center; gap: 16px; padding: 16px; background: var(--bg-elevated); border: 2px solid var(--border); box-shadow: var(--shadow); flex-wrap: wrap; }
+.shop-item-icon { width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; border: 2px solid var(--primary); flex-shrink: 0; }
+.shop-item-info { flex: 1; min-width: 150px; }
+.shop-item-name { font-size: 0.8rem; color: var(--text); font-weight: 700; margin-bottom: 4px; }
+.shop-item-desc { font-size: 0.55rem; color: var(--text-muted); line-height: 1.6; }
+.shop-item-action { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.shop-item-price { font-size: 0.65rem; color: var(--secondary); font-weight: 700; }
+.shop-buy-btn { font-size: 0.65rem; padding: 8px 20px; }
+.shop-inventory { display: flex; flex-direction: column; gap: 8px; }
+.inv-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--bg); border: 2px solid var(--border); }
+.inv-item-name { font-size: 0.7rem; color: var(--text); }
+.inv-item-count { font-size: 0.8rem; color: var(--primary-light); font-weight: 700; }
+.inv-empty { font-size: 0.6rem; color: var(--text-muted); text-align: center; padding: 16px; }
+.makeup-days-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+.makeup-day-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: var(--bg); border: 2px solid var(--border); }
+.makeup-day-item:hover { border-color: var(--primary); }
+.makeup-day-date { font-size: 0.65rem; color: var(--text-secondary); }
+@media (max-width: 768px) {
+    .shop-container { padding: 100px 16px 48px; }
+    .shop-item { flex-direction: column; text-align: center; }
+    .shop-item-action { flex-direction: row; }
+    .makeup-days-grid { grid-template-columns: 1fr; }
+}
+
+/* ===== 音乐播放器 ===== */
+.music-player { position: fixed; bottom: 16px; left: 16px; z-index: 1000; background: var(--bg-elevated); border: 2px solid var(--primary); box-shadow: var(--shadow-lg); width: 280px; transition: var(--transition); }
+.music-player.hidden { display: none; }
+.music-player-header { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 2px solid var(--border); background: var(--primary-dark); }
+.music-player-label { font-size: 0.9rem; color: var(--secondary); }
+.music-player-title { font-size: 0.55rem; color: var(--text-secondary); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.music-player-controls { display: flex; gap: 0; border-bottom: 2px solid var(--border); }
+.music-btn { flex: 1; padding: 6px 12px; background: var(--bg); border: none; border-right: 2px solid var(--border); color: var(--text); font-size: 0.75rem; cursor: pointer; font-family: inherit; transition: var(--transition); }
+.music-btn:last-child { border-right: none; }
+.music-btn:hover { background: var(--primary-dark); color: #fff; }
+.music-frame { width: 280px; height: 32px; display: block; }
+.music-frame.hidden { display: none; }
+.music-settings-card { padding: 20px; background: var(--bg-elevated); border: 2px solid var(--border); box-shadow: var(--shadow); }
+.music-settings-title { font-size: 0.75rem; color: var(--primary-light); font-weight: 700; margin-bottom: 8px; }
+.music-settings-desc { font-size: 0.55rem; color: var(--text-muted); margin-bottom: 16px; line-height: 1.8; }
+.music-settings-hint { font-size: 0.5rem; color: var(--text-muted); margin-top: 4px; line-height: 1.6; }
+.music-settings-actions { display: flex; gap: 12px; margin-top: 12px; }
+.music-settings-player { margin-top: 16px; padding-top: 16px; border-top: 2px solid var(--border); }
+.music-settings-player-label { font-size: 0.6rem; color: var(--text-secondary); margin-bottom: 8px; }
+@media (max-width: 768px) {
+    .music-player { width: 220px; bottom: 8px; left: 8px; }
+    .music-frame { width: 220px; }
+    .music-settings-actions { flex-direction: column; }
+}
+
+/* ===== 个人中心板块 ===== */
+.me-section { margin-bottom: 40px; }
+.me-section-title { font-size: 0.9rem; font-weight: 700; color: var(--primary-light); padding: 0 32px; margin-bottom: 8px; }
+.me-section-divider { height: 2px; background: var(--border); margin: 0 32px 24px; }
+
+/* ===== 用户勋章标签 ===== */
+.user-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; font-size: 0.5rem; border: 2px solid rgba(255,255,255,0.2); margin-right: 4px; }
+.profile-badges-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.badges-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+.badge-card { text-align: center; padding: 20px 12px; background: var(--bg-elevated); border: 2px solid var(--border); transition: var(--transition); }
+.badge-card.earned { border-color: var(--primary); background: rgba(76, 175, 80, 0.08); }
+.badge-card.locked { opacity: 0.4; }
+.badge-icon { margin-bottom: 8px; }
+.badge-name { font-size: 0.65rem; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.badge-desc { font-size: 0.5rem; color: var(--text-muted); margin-bottom: 8px; line-height: 1.6; }
+.badge-status { font-size: 0.5rem; color: var(--primary-light); font-weight: 700; }
+.badge-status.locked { color: var(--text-muted); }
+.mc-bind-success { display: flex; align-items: center; gap: 8px; margin-top: 12px; padding: 10px 12px; background: rgba(76, 175, 80, 0.1); border: 2px solid var(--primary); font-size: 0.6rem; color: var(--primary-light); }
+@media (max-width: 768px) {
+    .badges-grid { grid-template-columns: repeat(2, 1fr); }
 }

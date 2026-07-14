@@ -312,8 +312,8 @@ function canGrantBadge(granterEmail, targetEmail) {
     const tRole = target.adminRole;
 
     if (gRole === 'opAdmin') {
-        // op可授予任何人，但不可授予同级op
-        return tRole !== 'opAdmin';
+        // op可授予任何人（包括自己）
+        return true;
     }
     if (gRole === 'superAdmin') {
         // super不可授予op、不可授予同级super
@@ -335,13 +335,13 @@ function renderToolsSection(user) {
     // 仅 opAdmin 和 superAdmin 可见
     if (user.adminRole !== 'opAdmin' && user.adminRole !== 'superAdmin') return '';
 
-    const allUsers = state.users.filter(u => u.email !== user.email);
+    const allUsers = state.users;
     const roleLabels = { opAdmin: '超级管理员', superAdmin: '高级管理员', admin: '管理员' };
 
     const userOptions = allUsers.map(u => {
         const canGrant = canGrantBadge(user.email, u.email);
         const roleTag = u.adminRole ? ` [${roleLabels[u.adminRole] || u.adminRole}]` : '';
-        return `<option value="${u.email}" ${!canGrant ? 'disabled' : ''}>${escapeHtml(u.username)}${roleTag}${!canGrant ? ' (无权限)' : ''}</option>`;
+        return `<option value="${u.email}" ${!canGrant ? 'disabled' : ''}>${escapeHtml(u.username)}${roleTag}${!canGrant ? ' (无权限)' : ''}${u.email === user.email ? ' (自己)' : ''}</option>`;
     }).join('');
 
     const badgeOptions = manualBadges.map(b => {

@@ -1275,7 +1275,7 @@ function renderBadgesSection(email) {
         ${allBadges.map(b => {
             const earned = earnedIds.includes(b.id);
             return `
-            <div class="badge-card ${earned ? 'earned' : 'locked'}">
+            <div class="badge-card ${earned ? 'earned' : 'locked'}" ${earned ? `onclick="this.classList.remove('badge-animate');void this.offsetWidth;this.classList.add('badge-animate');"` : ''}>
                 <div class="badge-icon" style="color:${badgeColors[b.id] || 'var(--text-muted)'};">
                     ${badgeIcons[b.id] || ''}
                 </div>

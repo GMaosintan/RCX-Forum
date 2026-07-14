@@ -284,6 +284,20 @@ function getUserBadges(email) {
     return state.badges[email] || [];
 }
 
+function syncAdminBadges(email) {
+    const user = state.users.find(u => u.email === email);
+    if (!user || !user.adminRole) return;
+    const roleMap = {
+        admin: { id: 'admin', name: '管理员', desc: '论坛管理员' },
+        superAdmin: { id: 'super_admin', name: '高级管理员', desc: '论坛高级管理员' },
+        opAdmin: { id: 'op_admin', name: '超级管理员', desc: '论坛超级管理员' }
+    };
+    const badge = roleMap[user.adminRole];
+    if (badge) {
+        addBadge(email, badge.id, { name: badge.name, desc: badge.desc });
+    }
+}
+
 function renderBadges(email) {
     const badges = getUserBadges(email);
     if (badges.length === 0) return '';
@@ -292,13 +306,21 @@ function renderBadges(email) {
             minecraft: '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="2" y="1" width="4" height="4"/><rect x="10" y="1" width="4" height="4"/><rect x="2" y="7" width="4" height="4"/><rect x="10" y="7" width="4" height="4"/><rect x="2" y="13" width="4" height="2"/><rect x="10" y="13" width="4" height="2"/></svg>',
             premium: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1l2 5h5l-4 3 1.5 5L8 10l-4.5 4L5 9 1 6h5z" fill="currentColor"/></svg>',
             admin: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1L1 4v3c0 5.5 3 8.5 7 10 4-1.5 7-4.5 7-10V4L8 1z" fill="currentColor"/></svg>',
-            checkin_30: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+            super_admin: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1L1 4v3c0 5.5 3 8.5 7 10 4-1.5 7-4.5 7-10V4L8 1z" fill="currentColor"/><circle cx="8" cy="8" r="1.5" fill="#fff"/></svg>',
+            op_admin: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1L1 4v3c0 5.5 3 8.5 7 10 4-1.5 7-4.5 7-10V4L8 1z" fill="currentColor"/><path d="M5 8l2 2 4-4" stroke="#fff" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+            checkin_30: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+            dev: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M5 5l-3 3 3 3M11 5l3 3-3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+            maintainer: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2v4M8 10v4M2 8h4M10 8h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
         };
         const colors = {
             minecraft: '#4CAF50',
             premium: '#FF9800',
             admin: '#F44336',
-            checkin_30: '#03A9F4'
+            super_admin: '#FF5722',
+            op_admin: '#9C27B0',
+            checkin_30: '#03A9F4',
+            dev: '#00BCD4',
+            maintainer: '#8BC34A'
         };
         return `<span class="user-badge" style="background:${colors[b.id] || 'var(--primary)'};color:#fff;" title="${b.desc}">${icons[b.id] || ''} ${b.name}</span>`;
     }).join('');
@@ -1092,22 +1114,34 @@ function renderBadgesSection(email) {
     const allBadges = [
         { id: 'minecraft', name: '我的世界', desc: '已绑定微软Minecraft Java版账号', icon: 'minecraft' },
         { id: 'checkin_30', name: '签到达人', desc: '连续签到30天', icon: 'checkin_30' },
+        { id: 'op_admin', name: '超级管理员', desc: '论坛超级管理员', icon: 'op_admin' },
+        { id: 'super_admin', name: '高级管理员', desc: '论坛高级管理员', icon: 'super_admin' },
         { id: 'admin', name: '管理员', desc: '论坛管理员', icon: 'admin' },
+        { id: 'dev', name: '社区开发者', desc: '为社区贡献代码的开发者', icon: 'dev' },
+        { id: 'maintainer', name: '社区维护者', desc: '维护社区秩序与内容质量', icon: 'maintainer' },
     ];
 
     if (badges.length === 0) {
-        return '<div class="empty-state"><h3>还没有获得勋章</h3><p style="font-size:0.55rem;color:var(--text-muted);">绑定Minecraft账号或连续签到可获得勋章</p></div>';
+        return '<div class="empty-state"><h3>还没有获得勋章</h3><p style="font-size:0.55rem;color:var(--text-muted);">绑定Minecraft账号、连续签到或获得管理员身份可获得勋章</p></div>';
     }
 
     const badgeIcons = {
         minecraft: '<svg width="32" height="32" viewBox="0 0 16 16" fill="currentColor"><rect x="2" y="1" width="4" height="4"/><rect x="10" y="1" width="4" height="4"/><rect x="2" y="7" width="4" height="4"/><rect x="10" y="7" width="4" height="4"/><rect x="2" y="13" width="4" height="2"/><rect x="10" y="13" width="4" height="2"/></svg>',
         checkin_30: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-        admin: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M8 1L1 4v3c0 5.5 3 8.5 7 10 4-1.5 7-4.5 7-10V4L8 1z" fill="currentColor"/></svg>'
+        op_admin: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M8 1L1 4v3c0 5.5 3 8.5 7 10 4-1.5 7-4.5 7-10V4L8 1z" fill="currentColor"/><path d="M5 8l2 2 4-4" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+        super_admin: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M8 1L1 4v3c0 5.5 3 8.5 7 10 4-1.5 7-4.5 7-10V4L8 1z" fill="currentColor"/><circle cx="8" cy="8" r="2" fill="#fff"/></svg>',
+        admin: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M8 1L1 4v3c0 5.5 3 8.5 7 10 4-1.5 7-4.5 7-10V4L8 1z" fill="currentColor"/></svg>',
+        dev: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M5 5l-3 3 3 3M11 5l3 3-3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+        maintainer: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M8 2v4M8 10v4M2 8h4M10 8h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
     };
     const badgeColors = {
         minecraft: '#4CAF50',
         checkin_30: '#03A9F4',
-        admin: '#F44336'
+        op_admin: '#9C27B0',
+        super_admin: '#FF5722',
+        admin: '#F44336',
+        dev: '#00BCD4',
+        maintainer: '#8BC34A'
     };
 
     const earnedIds = badges.map(b => b.id);
@@ -1818,6 +1852,7 @@ function initLogin() {
                 // 确保 currentUser 有 registerTime
                 if (!state.currentUser.registerTime) state.currentUser.registerTime = Date.now();
                 saveCurrentUser();
+                syncAdminBadges(user.email);
                 showToast({ title: '登录成功', message: `欢迎回来，${user.username}！`, type: 'success' });
                 navigateTo('home');
                 form.reset();
@@ -2829,6 +2864,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 更新导航状态
     updateNavAuth();
+
+    // 同步管理员勋章
+    if (state.currentUser) {
+        syncAdminBadges(state.currentUser.email);
+    }
 
     // 渲染帖子
     renderHome();

@@ -507,6 +507,7 @@ function canGrantBadge(granterEmail, targetEmail) {
 const manualBadges = [
     { id: 'dev', name: '社区开发者', desc: '为社区贡献代码的开发者' },
     { id: 'maintainer', name: '社区维护者', desc: '维护社区秩序与内容质量' },
+    { id: 'helper', name: '社区帮助者', desc: '积极帮助社区成员解决问题' },
     { id: 'admin', name: '管理员', desc: '论坛管理员' },
     { id: 'super_admin', name: '高级管理员', desc: '论坛高级管理员' },
 ];
@@ -598,6 +599,7 @@ function renderUserBadges(email) {
             admin: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1L2 4v2.5c0 4.5 2.5 7 6 8.5 3.5-1.5 6-4 6-8.5V4L8 1z" fill="currentColor" opacity="0.85"/><path d="M8 2.5L3 5v1.5c0 4 2 6.5 5 8 3-1.5 5-4 5-8V5L8 2.5z" stroke="rgba(255,255,255,0.3)" stroke-width="0.5"/></svg>',
             dev: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="6" height="4" rx="0.5" stroke="currentColor" stroke-width="1" fill="rgba(0,188,212,0.1)"/><rect x="9" y="9" width="6" height="4" rx="0.5" stroke="currentColor" stroke-width="1" fill="rgba(0,188,212,0.1)"/><path d="M7 5l2-1v6l-2 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="3" cy="5" r="0.5" fill="currentColor"/><circle cx="12" cy="11" r="0.5" fill="currentColor"/><text x="3" y="6.5" font-size="3" fill="currentColor" font-family="monospace">&lt;/&gt;</text></svg>',
             maintainer: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2v4M8 10v4M2 8h4M10 8h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="8" cy="8" r="1.5" fill="currentColor" opacity="0.3"/><circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="0.5" stroke-dasharray="1.5 1.5"/><path d="M6 2h4M6 14h4M2 6v4M14 6v4" stroke="currentColor" stroke-width="0.8" stroke-linecap="round"/></svg>',
+            helper: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2v2M8 12v2M3 4l1.5 1M11.5 11l1.5 1M3 12l1.5-1M11.5 5l1.5-1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M6 7.5c0-1 .5-2 2-2s2 1 2 2c0 .8-.5 1.2-1.5 1.5h0c1 .3 1.5.7 1.5 1.5 0 1-1 2-2 2s-2-1-2-2" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/></svg>',
             exp_100: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1.5l1.2 3.5h3.8l-3 2.3 1.1 3.7L8 8.8 4.9 11l1.1-3.7-3-2.3h3.8z" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/><path d="M8 4l.6 1.8h2l-1.6 1.2.6 1.8L8 7.8l-1.6 1.2.6-1.8-1.6-1.2h2z" fill="currentColor" opacity="0.3"/></svg>',
             exp_1000: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1.5l1.2 3.5h3.8l-3 2.3 1.1 3.7L8 8.8 4.9 11l1.1-3.7-3-2.3h3.8z" fill="currentColor"/><path d="M8 3l.8 2.5h2.5l-2 1.5.7 2.5L8 8.2 5 9.5l.7-2.5-2-1.5h2.5z" fill="rgba(255,255,255,0.3)"/><circle cx="8" cy="6.5" r="0.8" fill="#fff"/></svg>',
             exp_5000: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1l1.2 3.5h3.8l-3 2.3 1.1 3.7L8 8.3 4.9 10.5l1.1-3.7-3-2.3h3.8z" fill="currentColor"/><path d="M8 2.5l.8 2.5h2.5l-2 1.5.7 2.5L8 8l-2 1.5.7-2.5-2-1.5h2.5z" fill="rgba(255,255,255,0.4)"/><circle cx="8" cy="6" r="1" fill="#fff"/><circle cx="8" cy="6" r="2" stroke="#FFD700" stroke-width="0.5"/></svg>'
@@ -617,7 +619,8 @@ function renderUserBadges(email) {
             exp_1000: '#FF5722',
             exp_5000: '#9C27B0',
             dev: '#00BCD4',
-            maintainer: '#8BC34A'
+            maintainer: '#8BC34A',
+            helper: '#FF7043'
         };
         return `<span class="user-badge" style="background:${colors[b.id] || 'var(--primary)'};color:#fff;" title="${b.desc}">${icons[b.id] || ''} ${b.name}</span>`;
     }).join('');
@@ -1523,6 +1526,7 @@ function renderBadgesSection(email) {
         admin: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M8 1L2 4v2.5c0 4.5 2.5 7 6 8.5 3.5-1.5 6-4 6-8.5V4L8 1z" fill="currentColor" opacity="0.85"/><path d="M8 2.5L3 5v1.5c0 4 2 6.5 5 8 3-1.5 5-4 5-8V5L8 2.5z" stroke="rgba(255,255,255,0.3)" stroke-width="0.5"/></svg>',
         dev: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="6" height="4" rx="0.5" stroke="currentColor" stroke-width="1" fill="rgba(0,188,212,0.1)"/><rect x="9" y="9" width="6" height="4" rx="0.5" stroke="currentColor" stroke-width="1" fill="rgba(0,188,212,0.1)"/><path d="M7 5l2-1v6l-2 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="3" cy="5" r="0.5" fill="currentColor"/><circle cx="12" cy="11" r="0.5" fill="currentColor"/><text x="3" y="6.5" font-size="3" fill="currentColor" font-family="monospace">&lt;/&gt;</text></svg>',
         maintainer: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M8 2v4M8 10v4M2 8h4M10 8h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="8" cy="8" r="1.5" fill="currentColor" opacity="0.3"/><circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="0.5" stroke-dasharray="1.5 1.5"/><path d="M6 2h4M6 14h4M2 6v4M14 6v4" stroke="currentColor" stroke-width="0.8" stroke-linecap="round"/></svg>',
+        helper: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M8 1.5v2M8 12.5v2M2.5 3.5l1.5 1M12 11.5l1.5 1M2.5 12.5l1.5-1M12 4.5l1.5-1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="8" cy="8" r="3.5" stroke="currentColor" stroke-width="1.5" fill="rgba(255,112,67,0.08)"/><path d="M5.5 7c0-1.2.7-2.5 2.5-2.5s2.5 1.3 2.5 2.5c0 1-.7 1.5-2 2v0c1.3.5 2 1 2 2 0 1.3-1.2 2.5-2.5 2.5s-2.5-1.2-2.5-2.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="0.5" stroke-dasharray="2 2"/></svg>',
         exp_100: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M8 1.5l1.2 3.5h3.8l-3 2.3 1.1 3.7L8 8.8 4.9 11l1.1-3.7-3-2.3h3.8z" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/><path d="M8 4l.6 1.8h2l-1.6 1.2.6 1.8L8 7.8l-1.6 1.2.6-1.8-1.6-1.2h2z" fill="currentColor" opacity="0.3"/></svg>',
         exp_1000: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M8 1.5l1.2 3.5h3.8l-3 2.3 1.1 3.7L8 8.8 4.9 11l1.1-3.7-3-2.3h3.8z" fill="currentColor"/><path d="M8 3l.8 2.5h2.5l-2 1.5.7 2.5L8 8.2 5 9.5l.7-2.5-2-1.5h2.5z" fill="rgba(255,255,255,0.3)"/><circle cx="8" cy="6.5" r="0.8" fill="#fff"/></svg>',
         exp_5000: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M8 1l1.2 3.5h3.8l-3 2.3 1.1 3.7L8 8.3 4.9 10.5l1.1-3.7-3-2.3h3.8z" fill="currentColor"/><path d="M8 2.5l.8 2.5h2.5l-2 1.5.7 2.5L8 8l-2 1.5.7-2.5-2-1.5h2.5z" fill="rgba(255,255,255,0.4)"/><circle cx="8" cy="6" r="1" fill="#fff"/><circle cx="8" cy="6" r="2" stroke="#FFD700" stroke-width="0.5"/></svg>'
@@ -1535,6 +1539,7 @@ function renderBadgesSection(email) {
         admin: '#F44336',
         dev: '#00BCD4',
         maintainer: '#8BC34A',
+        helper: '#FF7043',
         checkin_100: '#66BB6A',
         checkin_365: '#2196F3',
         checkin_500: '#FF9800',

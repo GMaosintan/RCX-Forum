@@ -298,6 +298,92 @@ function syncAdminBadges(email) {
     }
 }
 
+// ===== 勋章授予权限 =====
+function canGrantBadge(granterEmail, targetEmail) {
+    const granter = state.users.find(u => u.email === granterEmail);
+    const target = state.users.find(u => u.email === targetEmail);
+    if (!granter || !target) return false;
+    if (!granter.adminRole) return false;
+
+    // 不可授予自己
+    if (granterEmail === targetEmail) return false;
+
+    const gRole = granter.adminRole;
+    const tRole = target.adminRole;
+
+    if (gRole === 'opAdmin') {
+        // op可授予任何人，但不可授予同级op
+        return tRole !== 'opAdmin';
+    }
+    if (gRole === 'superAdmin') {
+        // super不可授予op、不可授予同级super
+        return tRole !== 'opAdmin' && tRole !== 'superAdmin';
+    }
+    // 普通admin无授予权限
+    return false;
+}
+
+// 可手动授予的勋章列表
+const manualBadges = [
+    { id: 'dev', name: '社区开发者', desc: '为社区贡献代码的开发者' },
+    { id: 'maintainer', name: '社区维护者', desc: '维护社区秩序与内容质量' },
+    { id: 'admin', name: '管理员', desc: '论坛管理员' },
+    { id: 'super_admin', name: '高级管理员', desc: '论坛高级管理员' },
+];
+
+function renderToolsSection(user) {
+    // 仅 opAdmin 和 superAdmin 可见
+    if (user.adminRole !== 'opAdmin' && user.adminRole !== 'superAdmin') return '';
+
+    const allUsers = state.users.filter(u => u.email !== user.email);
+    const roleLabels = { opAdmin: '超级管理员', superAdmin: '高级管理员', admin: '管理员' };
+
+    const userOptions = allUsers.map(u => {
+        const canGrant = canGrantBadge(user.email, u.email);
+        const roleTag = u.adminRole ? ` [${roleLabels[u.adminRole] || u.adminRole}]` : '';
+        return `<option value="${u.email}" ${!canGrant ? 'disabled' : ''}>${escapeHtml(u.username)}${roleTag}${!canGrant ? ' (无权限)' : ''}</option>`;
+    }).join('');
+
+    const badgeOptions = manualBadges.map(b => {
+        // superAdmin不能授予super_admin级别
+        if (user.adminRole === 'superAdmin' && b.id === 'super_admin') {
+            return `<option value="${b.id}" disabled>${b.name} (无权限)</option>`;
+        }
+        return `<option value="${b.id}">${b.name}</option>`;
+    }).join('');
+
+    return `
+    <div class="tools-card">
+        <div class="tools-title">勋章授予工具</div>
+        <div class="tools-desc">选择用户并授予勋章。除超级管理员外，不可授予同级或自身。</div>
+        <div class="tools-form">
+            <div class="tools-form-row">
+                <label class="tools-label">选择用户</label>
+                <select id="grantUserSelect" class="tools-select">
+                    <option value="">-- 选择用户 --</option>
+                    ${userOptions}
+                </select>
+            </div>
+            <div class="tools-form-row">
+                <label class="tools-label">选择勋章</label>
+                <select id="grantBadgeSelect" class="tools-select">
+                    <option value="">-- 选择勋章 --</option>
+                    ${badgeOptions}
+                </select>
+            </div>
+            <div class="tools-actions">
+                <button class="btn btn-primary" id="grantBadgeBtn" style="font-size:0.65rem;padding:10px 24px;">授予勋章</button>
+                <button class="btn btn-ghost" id="revokeBadgeBtn" style="font-size:0.65rem;padding:10px 24px;">移除勋章</button>
+            </div>
+        </div>
+        <div class="tools-user-badges" id="toolsUserBadges" style="display:none;">
+            <div class="tools-user-badges-title">该用户当前勋章</div>
+            <div id="toolsBadgeList"></div>
+        </div>
+    </div>
+    `;
+}
+
 function renderBadges(email) {
     const badges = getUserBadges(email);
     if (badges.length === 0) return '';
@@ -1226,6 +1312,94 @@ function renderSettings(email) {
     `;
 }
 
+function initToolsBindings() {
+    const userSelect = document.getElementById('grantUserSelect');
+    const badgeSelect = document.getElementById('grantBadgeSelect');
+    const grantBtn = document.getElementById('grantBadgeBtn');
+    const revokeBtn = document.getElementById('revokeBadgeBtn');
+    const badgesContainer = document.getElementById('toolsUserBadges');
+    const badgeList = document.getElementById('toolsBadgeList');
+
+    if (!userSelect) return;
+
+    // 选择用户时显示其当前勋章
+    userSelect.addEventListener('change', () => {
+        const email = userSelect.value;
+        if (!email) {
+            badgesContainer.style.display = 'none';
+            return;
+        }
+        const badges = getUserBadges(email);
+        if (badges.length === 0) {
+            badgeList.innerHTML = '<span style="font-size:0.55rem;color:var(--text-muted);">该用户暂无勋章</span>';
+        } else {
+            badgeList.innerHTML = badges.map(b => `<span class="user-badge" style="background:var(--primary-dark);color:#fff;margin:2px;">${b.name}</span>`).join('');
+        }
+        badgesContainer.style.display = 'block';
+    });
+
+    // 授予勋章
+    if (grantBtn) {
+        grantBtn.addEventListener('click', () => {
+            if (!state.currentUser) return;
+            const targetEmail = userSelect.value;
+            const badgeId = badgeSelect.value;
+            if (!targetEmail) { showToast({ title: '请选择用户', type: 'warning' }); return; }
+            if (!badgeId) { showToast({ title: '请选择勋章', type: 'warning' }); return; }
+
+            if (!canGrantBadge(state.currentUser.email, targetEmail)) {
+                showToast({ title: '权限不足', message: '不可授予该用户', type: 'error' });
+                return;
+            }
+
+            const badge = manualBadges.find(b => b.id === badgeId);
+            if (!badge) return;
+
+            // superAdmin不能授予super_admin
+            if (state.currentUser.adminRole === 'superAdmin' && badgeId === 'super_admin') {
+                showToast({ title: '权限不足', message: '高级管理员不可授予同级勋章', type: 'error' });
+                return;
+            }
+
+            addBadge(targetEmail, badgeId, { name: badge.name, desc: badge.desc });
+            const targetUser = state.users.find(u => u.email === targetEmail);
+            showToast({ title: '授予成功', message: `已向 ${targetUser.username} 授予${badge.name}勋章`, type: 'success' });
+
+            // 刷新显示
+            userSelect.dispatchEvent(new Event('change'));
+        });
+    }
+
+    // 移除勋章
+    if (revokeBtn) {
+        revokeBtn.addEventListener('click', () => {
+            if (!state.currentUser) return;
+            const targetEmail = userSelect.value;
+            const badgeId = badgeSelect.value;
+            if (!targetEmail) { showToast({ title: '请选择用户', type: 'warning' }); return; }
+            if (!badgeId) { showToast({ title: '请选择勋章', type: 'warning' }); return; }
+
+            if (!canGrantBadge(state.currentUser.email, targetEmail)) {
+                showToast({ title: '权限不足', message: '不可操作该用户', type: 'error' });
+                return;
+            }
+
+            // 不可移除opAdmin的管理勋章（除op自己外）
+            const targetUser = state.users.find(u => u.email === targetEmail);
+            if (targetUser && targetUser.adminRole === 'opAdmin' && state.currentUser.adminRole !== 'opAdmin') {
+                showToast({ title: '权限不足', message: '不可移除超级管理员的勋章', type: 'error' });
+                return;
+            }
+
+            removeBadge(targetEmail, badgeId);
+            const badge = manualBadges.find(b => b.id === badgeId);
+            showToast({ title: '已移除', message: `已移除 ${targetUser.username} 的${badge ? badge.name : '勋章'}`, type: 'success' });
+
+            userSelect.dispatchEvent(new Event('change'));
+        });
+    }
+}
+
 function initSettingsBindings() {
     // 音乐绑定
     const saveBtn = document.getElementById('musicSaveBtn');
@@ -1448,7 +1622,18 @@ function renderMe() {
             </div>
         </div>
 
-        <!-- 板块5: 设置 -->
+        ${user.adminRole === 'opAdmin' || user.adminRole === 'superAdmin' ? `
+        <!-- 板块5: 管理工具 -->
+        <div class="me-section">
+            <div class="me-section-title">管理工具</div>
+            <div class="me-section-divider"></div>
+            <div style="padding: 0 32px 32px;">
+                ${renderToolsSection(user)}
+            </div>
+        </div>
+        ` : ''}
+
+        <!-- 板块6: 设置 -->
         <div class="me-section">
             <div class="me-section-title">设置</div>
             <div class="me-section-divider"></div>
@@ -1499,6 +1684,9 @@ function renderMe() {
 
     // 绑定设置
     initSettingsBindings();
+
+    // 绑定勋章授予工具
+    initToolsBindings();
 
     bindPostCardEvents();
 }

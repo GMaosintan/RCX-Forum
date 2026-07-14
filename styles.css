@@ -3414,3 +3414,92 @@ a, button {
 @media (max-width: 768px) {
     .badges-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ===== 管理工具板块 ===== */
+.tools-card {
+    padding: 20px;
+    background: var(--bg-elevated);
+    border: 2px solid var(--border);
+    box-shadow: var(--shadow);
+}
+
+.tools-title {
+    font-size: 0.75rem;
+    color: var(--primary-light);
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.tools-desc {
+    font-size: 0.55rem;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+    line-height: 1.8;
+}
+
+.tools-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.tools-form-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.tools-label {
+    font-size: 0.6rem;
+    color: var(--text-secondary);
+}
+
+.tools-select {
+    padding: 10px 12px;
+    background: var(--bg);
+    border: 2px solid var(--border);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.65rem;
+    cursor: pointer;
+}
+
+.tools-select:focus {
+    border-color: var(--primary);
+    outline: none;
+}
+
+.tools-select option:disabled {
+    color: var(--text-muted);
+    opacity: 0.5;
+}
+
+.tools-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.tools-user-badges {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 2px solid var(--border);
+}
+
+.tools-user-badges-title {
+    font-size: 0.6rem;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+#toolsBadgeList {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+@media (max-width: 768px) {
+    .tools-actions {
+        flex-direction: column;
+    }
+}

@@ -3697,3 +3697,100 @@ a, button {
         flex-direction: column;
     }
 }
+
+/* ===== 经验等级 ===== */
+.exp-bar-container {
+    padding: 0 32px 24px;
+}
+
+.exp-bar-card {
+    background: var(--bg-elevated);
+    border: 2px solid var(--border);
+    padding: 16px;
+    box-shadow: var(--shadow);
+}
+
+.exp-bar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.exp-bar-level {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--primary-light);
+}
+
+.exp-bar-title {
+    font-size: 0.55rem;
+    color: var(--text-muted);
+}
+
+.exp-bar-track {
+    width: 100%;
+    height: 12px;
+    background: var(--bg);
+    border: 2px solid var(--border);
+    position: relative;
+    overflow: hidden;
+}
+
+.exp-bar-fill {
+    height: 100%;
+    background: var(--primary);
+    transition: width 0.3s steps(4);
+    position: relative;
+}
+
+.exp-bar-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 4px;
+    height: 100%;
+    background: rgba(255,255,255,0.4);
+}
+
+.exp-bar-text {
+    font-size: 0.5rem;
+    color: var(--text-muted);
+    margin-top: 6px;
+    text-align: right;
+}
+
+.exp-detail-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 2px solid var(--border);
+}
+
+.exp-detail-item {
+    font-size: 0.5rem;
+    color: var(--text-muted);
+    padding: 4px 8px;
+    background: var(--bg);
+    border: 2px solid var(--border);
+}
+
+.exp-detail-item span {
+    color: var(--primary-light);
+    font-weight: 700;
+}
+
+@media (max-width: 768px) {
+    .exp-bar-header {
+        flex-direction: column;
+        text-align: center;
+        gap: 4px;
+    }
+
+    .exp-detail-grid {
+        justify-content: center;
+    }
+}

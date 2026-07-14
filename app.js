@@ -26,6 +26,7 @@ const state = {
     mcAccounts: JSON.parse(localStorage.getItem('mcAccounts')) || {},
     badges: JSON.parse(localStorage.getItem('badges')) || {},
     avatars: JSON.parse(localStorage.getItem('avatars')) || {},
+    experience: JSON.parse(localStorage.getItem('experience')) || {},
     currentTeamFilter: 'all',
     currentTheme: localStorage.getItem('currentTheme') || 'dark',
 };
@@ -245,6 +246,53 @@ function saveMusicUserId() { localStorage.setItem('musicUserId', JSON.stringify(
 function saveMcAccounts() { localStorage.setItem('mcAccounts', JSON.stringify(state.mcAccounts)); }
 function saveBadges() { localStorage.setItem('badges', JSON.stringify(state.badges)); }
 function saveAvatars() { localStorage.setItem('avatars', JSON.stringify(state.avatars)); }
+function saveExperience() { localStorage.setItem('experience', JSON.stringify(state.experience)); }
+
+// ===== 经验与等级系统 =====
+function getExp(email) {
+    return state.experience[email] || { total: 0, level: 1, fromCheckin: 0, fromPost: 0, fromLike: 0, fromFav: 0, fromView: 0, fromBug: 0 };
+}
+
+function getLevelInfo(level) {
+    const thresholds = [0, 100, 300, 600, 1000, 1500, 2200, 3000, 4000, 5500, 7500, 10000];
+    if (level >= thresholds.length) return { min: thresholds[thresholds.length-1], max: thresholds[thresholds.length-1] + 2500 };
+    return { min: thresholds[level-1], max: thresholds[level] };
+}
+
+function getLevelTitle(level) {
+    if (level >= 12) return '传奇';
+    if (level >= 10) return '宗师';
+    if (level >= 8) return '大师';
+    if (level >= 6) return '专家';
+    if (level >= 4) return '老手';
+    if (level >= 2) return '新手';
+    return '萌新';
+}
+
+function addExp(email, amount, source) {
+    if (!state.experience[email]) state.experience[email] = { total: 0, level: 1, fromCheckin: 0, fromPost: 0, fromLike: 0, fromFav: 0, fromView: 0, fromBug: 0 };
+    const exp = state.experience[email];
+    exp.total += amount;
+    if (source && exp.hasOwnProperty('from' + source)) {
+        exp['from' + source] += amount;
+    }
+    // 计算等级
+    const thresholds = [0, 100, 300, 600, 1000, 1500, 2200, 3000, 4000, 5500, 7500, 10000];
+    let newLevel = 1;
+    for (let i = 1; i < thresholds.length; i++) {
+        if (exp.total >= thresholds[i]) newLevel = i + 1;
+    }
+    if (exp.total >= 12500) newLevel = 12;
+    const oldLevel = exp.level;
+    exp.level = newLevel;
+    saveExperience();
+
+    // 升级提示
+    if (newLevel > oldLevel) {
+        showToast({ title: '升级了', message: `达到 Lv.${newLevel} ${getLevelTitle(newLevel)}`, type: 'success' });
+    }
+    return { gained: amount, levelUp: newLevel > oldLevel, newLevel, oldLevel };
+}
 
 // ===== 头像系统 =====
 function getUserAvatar(email) {
@@ -336,6 +384,33 @@ function syncAdminBadges(email) {
     }
 }
 
+function syncCheckinBadges(email) {
+    const records = getCheckinData(email);
+    const total = records.length;
+    const checkinBadges = [
+        { id: 'checkin_30', days: 30, name: '初级签到达人', desc: '累计签到30天' },
+        { id: 'checkin_100', days: 100, name: '中级签到达人', desc: '累计签到100天' },
+        { id: 'checkin_365', days: 365, name: '高级签到达人', desc: '累计签到365天' },
+        { id: 'checkin_500', days: 500, name: '大师签到达人', desc: '累计签到500天' },
+        { id: 'checkin_1000', days: 1000, name: '骨灰级签到达人', desc: '累计签到1000天' },
+    ];
+    checkinBadges.forEach(b => {
+        if (total >= b.days) addBadge(email, b.id, { name: b.name, desc: b.desc });
+    });
+}
+
+function syncExpBadges(email) {
+    const exp = getExp(email);
+    const expBadges = [
+        { id: 'exp_100', amount: 100, name: '活跃居民', desc: '累计获得100经验' },
+        { id: 'exp_1000', amount: 1000, name: '社区栋梁', desc: '累计获得1000经验' },
+        { id: 'exp_5000', amount: 5000, name: '论坛传奇', desc: '累计获得5000经验' },
+    ];
+    expBadges.forEach(b => {
+        if (exp.total >= b.amount) addBadge(email, b.id, { name: b.name, desc: b.desc });
+    });
+}
+
 // ===== 勋章授予权限 =====
 function canGrantBadge(granterEmail, targetEmail) {
     const granter = state.users.find(u => u.email === granterEmail);
@@ -419,6 +494,23 @@ function renderToolsSection(user) {
             <div id="toolsBadgeList"></div>
         </div>
     </div>
+
+    <!-- BUG反馈 -->
+    <div class="music-settings-card">
+        <div class="music-settings-title">BUG反馈</div>
+        <div class="music-settings-desc">提交BUG反馈可获得经验奖励</div>
+        <div class="music-settings-form">
+            <div class="form-group">
+                <label>BUG描述</label>
+                <div class="input-wrapper">
+                    <textarea id="bugReportInput" class="form-input" placeholder="描述你发现的BUG..." rows="3" style="resize:vertical;font-family:inherit;"></textarea>
+                </div>
+            </div>
+            <div class="music-settings-actions">
+                <button class="btn btn-primary" id="bugReportBtn" style="font-size:0.65rem;padding:10px 24px;">提交反馈 +15经验</button>
+            </div>
+        </div>
+    </div>
     `;
 }
 
@@ -433,6 +525,13 @@ function renderBadges(email) {
             super_admin: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1L1 4v3c0 5.5 3 8.5 7 10 4-1.5 7-4.5 7-10V4L8 1z" fill="currentColor"/><circle cx="8" cy="8" r="1.5" fill="#fff"/></svg>',
             op_admin: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1L1 4v3c0 5.5 3 8.5 7 10 4-1.5 7-4.5 7-10V4L8 1z" fill="currentColor"/><path d="M5 8l2 2 4-4" stroke="#fff" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/></svg>',
             checkin_30: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+            checkin_100: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 2v2M8 12v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+            checkin_365: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 2v2M8 12v2M2 8h2M12 8h2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+            checkin_500: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 3l2 2M11 11l2 2M3 13l2-2M11 5l2-2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+            checkin_1000: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M1 8h2M13 8h2M8 1v2M8 13v2M3 3l1.5 1.5M11.5 11.5l1.5 1.5M3 13l1.5-1.5M11.5 4.5l1.5-1.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+            exp_100: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1l1.5 4h4l-3.2 2.5 1.2 4L8 9.5 4.5 11.5l1.2-4L2.5 5h4z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+            exp_1000: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1l1.5 4h4l-3.2 2.5 1.2 4L8 9.5 4.5 11.5l1.2-4L2.5 5h4z" fill="currentColor"/></svg>',
+            exp_5000: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1l1.5 4h4l-3.2 2.5 1.2 4L8 9.5 4.5 11.5l1.2-4L2.5 5h4z" fill="currentColor"/><circle cx="8" cy="8" r="2" fill="#fff"/></svg>',
             dev: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M5 5l-3 3 3 3M11 5l3 3-3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
             maintainer: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2v4M8 10v4M2 8h4M10 8h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
         };
@@ -443,6 +542,13 @@ function renderBadges(email) {
             super_admin: '#FF5722',
             op_admin: '#9C27B0',
             checkin_30: '#03A9F4',
+            checkin_100: '#66BB6A',
+            checkin_365: '#2196F3',
+            checkin_500: '#FF9800',
+            checkin_1000: '#E91E63',
+            exp_100: '#FFC107',
+            exp_1000: '#FF5722',
+            exp_5000: '#9C27B0',
             dev: '#00BCD4',
             maintainer: '#8BC34A'
         };
@@ -858,6 +964,9 @@ function toggleLike(postId) {
     const idx = state.likes[postId].indexOf(email);
     if (idx === -1) {
         state.likes[postId].push(email);
+        // 给帖子作者获取被点赞经验
+        const post = state.posts.find(p => p.id === postId);
+        if (post && post.authorId !== email) addExp(post.authorId, 3, 'Like');
     } else {
         state.likes[postId].splice(idx, 1);
     }
@@ -876,6 +985,8 @@ function toggleFavorite(postId) {
     const idx = state.favorites[email].indexOf(postId);
     if (idx === -1) {
         state.favorites[email].push(postId);
+        const post = state.posts.find(p => p.id === postId);
+        if (post && post.authorId !== email) addExp(post.authorId, 5, 'Fav');
         showToast({ title: '已收藏', type: 'success', duration: 1500 });
     } else {
         state.favorites[email].splice(idx, 1);
@@ -999,6 +1110,9 @@ function doCheckin() {
     state.points[email] += earned;
     savePoints();
     
+    // 签到获取经验
+    addExp(email, 5, 'Checkin');
+    
     showToast({ title: '签到成功', message: `获得 ${earned} 积分！连续签到 ${newStreak} 天`, type: 'success' });
     renderMe();
 }
@@ -1054,6 +1168,10 @@ function renderCheckinCard(email) {
             <div class="checkin-stat">
                 <span class="checkin-stat-value">${userPoints}</span>
                 <span class="checkin-stat-label">总积分</span>
+            </div>
+            <div class="checkin-stat">
+                <span class="checkin-stat-value">Lv.${getExp(email).level}</span>
+                <span class="checkin-stat-label">经验等级</span>
             </div>
         </div>
         <div class="checkin-calendar">
@@ -1237,7 +1355,14 @@ function renderBadgesSection(email) {
     const badges = getUserBadges(email);
     const allBadges = [
         { id: 'minecraft', name: '我的世界', desc: '已绑定微软Minecraft Java版账号', icon: 'minecraft' },
-        { id: 'checkin_30', name: '签到达人', desc: '连续签到30天', icon: 'checkin_30' },
+        { id: 'checkin_30', name: '初级签到达人', desc: '累计签到30天', icon: 'checkin_30' },
+        { id: 'checkin_100', name: '中级签到达人', desc: '累计签到100天', icon: 'checkin_100' },
+        { id: 'checkin_365', name: '高级签到达人', desc: '累计签到365天', icon: 'checkin_365' },
+        { id: 'checkin_500', name: '大师签到达人', desc: '累计签到500天', icon: 'checkin_500' },
+        { id: 'checkin_1000', name: '骨灰级签到达人', desc: '累计签到1000天', icon: 'checkin_1000' },
+        { id: 'exp_100', name: '活跃居民', desc: '累计获得100经验', icon: 'exp_100' },
+        { id: 'exp_1000', name: '社区栋梁', desc: '累计获得1000经验', icon: 'exp_1000' },
+        { id: 'exp_5000', name: '论坛传奇', desc: '累计获得5000经验', icon: 'exp_5000' },
         { id: 'op_admin', name: '超级管理员', desc: '论坛超级管理员', icon: 'op_admin' },
         { id: 'super_admin', name: '高级管理员', desc: '论坛高级管理员', icon: 'super_admin' },
         { id: 'admin', name: '管理员', desc: '论坛管理员', icon: 'admin' },
@@ -1256,7 +1381,14 @@ function renderBadgesSection(email) {
         super_admin: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M8 1L1 4v3c0 5.5 3 8.5 7 10 4-1.5 7-4.5 7-10V4L8 1z" fill="currentColor"/><circle cx="8" cy="8" r="2" fill="#fff"/></svg>',
         admin: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M8 1L1 4v3c0 5.5 3 8.5 7 10 4-1.5 7-4.5 7-10V4L8 1z" fill="currentColor"/></svg>',
         dev: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M5 5l-3 3 3 3M11 5l3 3-3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-        maintainer: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M8 2v4M8 10v4M2 8h4M10 8h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+        maintainer: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M8 2v4M8 10v4M2 8h4M10 8h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+        checkin_100: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 2v2M8 12v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+        checkin_365: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 2v2M8 12v2M2 8h2M12 8h2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+        checkin_500: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 3l2 2M11 11l2 2M3 13l2-2M11 5l2-2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+        checkin_1000: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M1 8h2M13 8h2M8 1v2M8 13v2M3 3l1.5 1.5M11.5 11.5l1.5 1.5M3 13l1.5-1.5M11.5 4.5l1.5-1.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+        exp_100: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M8 1l1.5 4h4l-3.2 2.5 1.2 4L8 9.5 4.5 11.5l1.2-4L2.5 5h4z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+        exp_1000: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M8 1l1.5 4h4l-3.2 2.5 1.2 4L8 9.5 4.5 11.5l1.2-4L2.5 5h4z" fill="currentColor"/></svg>',
+        exp_5000: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M8 1l1.5 4h4l-3.2 2.5 1.2 4L8 9.5 4.5 11.5l1.2-4L2.5 5h4z" fill="currentColor"/><circle cx="8" cy="8" r="2" fill="#fff"/></svg>',
     };
     const badgeColors = {
         minecraft: '#4CAF50',
@@ -1265,7 +1397,14 @@ function renderBadgesSection(email) {
         super_admin: '#FF5722',
         admin: '#F44336',
         dev: '#00BCD4',
-        maintainer: '#8BC34A'
+        maintainer: '#8BC34A',
+        checkin_100: '#66BB6A',
+        checkin_365: '#2196F3',
+        checkin_500: '#FF9800',
+        checkin_1000: '#E91E63',
+        exp_100: '#FFC107',
+        exp_1000: '#FF5722',
+        exp_5000: '#9C27B0',
     };
 
     const earnedIds = badges.map(b => b.id);
@@ -1643,6 +1782,23 @@ function initSettingsBindings() {
             renderMe();
         });
     }
+
+    // BUG反馈
+    const bugReportBtn = document.getElementById('bugReportBtn');
+    if (bugReportBtn) {
+        bugReportBtn.addEventListener('click', () => {
+            if (!state.currentUser) return;
+            const input = document.getElementById('bugReportInput');
+            const text = input.value.trim();
+            if (!text || text.length < 10) {
+                showToast({ title: '请详细描述', message: '至少10个字', type: 'warning' });
+                return;
+            }
+            addExp(state.currentUser.email, 15, 'Bug');
+            showToast({ title: '反馈成功', message: '获得15经验，感谢你的贡献！', type: 'success' });
+            input.value = '';
+        });
+    }
 }
 
 function showMusicPlayer(uid) {
@@ -1726,6 +1882,10 @@ function renderMe() {
                     <div class="profile-info-item">
                         <div class="profile-info-label">点赞帖子</div>
                         <div class="profile-info-value">${likedPosts.length}</div>
+                    </div>
+                    <div class="profile-info-item">
+                        <div class="profile-info-label">经验等级</div>
+                        <div class="profile-info-value accent">Lv.${getExp(user.email).level} ${getLevelTitle(getExp(user.email).level)}</div>
                     </div>
                 </div>
             </div>
@@ -2208,6 +2368,8 @@ function initLogin() {
                 if (!state.currentUser.registerTime) state.currentUser.registerTime = Date.now();
                 saveCurrentUser();
                 syncAdminBadges(user.email);
+                syncCheckinBadges(user.email);
+                syncExpBadges(user.email);
                 showToast({ title: '登录成功', message: `欢迎回来，${user.username}！`, type: 'success' });
                 navigateTo('home');
                 form.reset();
@@ -3243,6 +3405,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // 同步管理员勋章
     if (state.currentUser) {
         syncAdminBadges(state.currentUser.email);
+        syncCheckinBadges(state.currentUser.email);
+        syncExpBadges(state.currentUser.email);
     }
 
     // 渲染帖子

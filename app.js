@@ -27,6 +27,8 @@ const state = {
     badges: JSON.parse(localStorage.getItem('badges')) || {},
     avatars: JSON.parse(localStorage.getItem('avatars')) || {},
     experience: JSON.parse(localStorage.getItem('experience')) || {},
+    expBoost: JSON.parse(localStorage.getItem('expBoost')) || {},
+    shopLimits: JSON.parse(localStorage.getItem('shopLimits')) || {},
     currentTeamFilter: 'all',
     currentTheme: localStorage.getItem('currentTheme') || 'dark',
 };
@@ -247,34 +249,99 @@ function saveMcAccounts() { localStorage.setItem('mcAccounts', JSON.stringify(st
 function saveBadges() { localStorage.setItem('badges', JSON.stringify(state.badges)); }
 function saveAvatars() { localStorage.setItem('avatars', JSON.stringify(state.avatars)); }
 function saveExperience() { localStorage.setItem('experience', JSON.stringify(state.experience)); }
+function saveExpBoost() { localStorage.setItem('expBoost', JSON.stringify(state.expBoost)); }
+function saveShopLimits() { localStorage.setItem('shopLimits', JSON.stringify(state.shopLimits)); }
 
 // ===== 经验与等级系统 =====
 function getExp(email) {
     return state.experience[email] || { total: 0, level: 1, fromCheckin: 0, fromPost: 0, fromLike: 0, fromFav: 0, fromView: 0, fromBug: 0 };
 }
 
+function hasActiveBoost(email) {
+    const boost = state.expBoost[email];
+    if (!boost) return 0;
+    const now = Date.now();
+    const remaining = [];
+    boost.forEach(b => {
+        if (now < b.endTime) remaining.push(b);
+    });
+    state.expBoost[email] = remaining;
+    saveExpBoost();
+    return remaining.length > 0 ? 10 : 0; // 返回加成百分比
+}
+
+function activateExpBoost(email) {
+    if (!state.expBoost[email]) state.expBoost[email] = [];
+    const endTime = Date.now() + 3 * 86400000; // 3天
+    state.expBoost[email].push({ startTime: Date.now(), endTime });
+    saveExpBoost();
+}
+
+function canBuyThisWeek(email, item) {
+    if (!state.shopLimits[email]) state.shopLimits[email] = {};
+    const now = Date.now();
+    const weekStart = now - ((new Date().getDay() || 7) - 1) * 86400000; // 本周一0点
+    // 清理旧记录
+    Object.keys(state.shopLimits[email]).forEach(key => {
+        if (state.shopLimits[email][key] < weekStart) delete state.shopLimits[email][key];
+    });
+    const lastBuy = state.shopLimits[email][item] || 0;
+    const limits = { makeup_card: 2, exp_boost: 1 };
+    const limit = limits[item] || 999;
+    const boughtThisWeek = Object.entries(state.shopLimits[email]).filter(([k, v]) => k === item && v >= weekStart).length;
+    return boughtThisWeek < limit;
+}
+
+function recordPurchase(email, item) {
+    if (!state.shopLimits[email]) state.shopLimits[email] = {};
+    state.shopLimits[email][item + '_' + Date.now()] = Date.now();
+    saveShopLimits();
+}
+
 function getLevelInfo(level) {
-    const thresholds = [0, 100, 300, 600, 1000, 1500, 2200, 3000, 4000, 5500, 7500, 10000];
-    if (level >= thresholds.length) return { min: thresholds[thresholds.length-1], max: thresholds[thresholds.length-1] + 2500 };
-    return { min: thresholds[level-1], max: thresholds[level] };
+    if (level < 100) {
+        // 每10级升一档，每档需要更多经验
+        const base = 100;
+        const perLevel = Math.floor(base * Math.pow(1.08, level - 1));
+        const min = level <= 1 ? 0 : Array.from({length: level - 1}, (_, i) => Math.floor(base * Math.pow(1.08, i))).reduce((a, b) => a + b, 0);
+        const max = min + perLevel;
+        return { min, max, perLevel };
+    }
+    // Lv.100+ 每级固定5000经验
+    const extra = level - 100;
+    const min = 12500 + extra * 5000;
+    const max = min + 5000;
+    return { min, max, perLevel: 5000 };
 }
 
 function getLevelTitle(level) {
-    if (level >= 12) return '传奇';
-    if (level >= 10) return '宗师';
-    if (level >= 8) return '大师';
-    if (level >= 6) return '专家';
-    if (level >= 4) return '老手';
-    if (level >= 2) return '新手';
+    if (level > 100) {
+        const suffix = String.fromCharCode(64 + Math.min(level - 100, 26));
+        return '传奇' + suffix;
+    }
+    if (level === 100) return '传奇';
+    if (level >= 80) return '宗师';
+    if (level >= 60) return '大师';
+    if (level >= 40) return '专家';
+    if (level >= 25) return '老手';
+    if (level >= 10) return '新手';
     return '萌新';
+}
+
+function getLevelDisplay(level) {
+    if (level > 100) return 'Lv.100' + String.fromCharCode(64 + Math.min(level - 100, 26));
+    return 'Lv.' + level;
 }
 
 function addExp(email, amount, source) {
     if (!state.experience[email]) state.experience[email] = { total: 0, level: 1, fromCheckin: 0, fromPost: 0, fromLike: 0, fromFav: 0, fromView: 0, fromBug: 0 };
     const exp = state.experience[email];
-    exp.total += amount;
+    const boostPct = hasActiveBoost(email);
+    const boosted = Math.floor(amount * (1 + boostPct / 100));
+    exp.total += boosted;
+    const gained = boosted;
     if (source && exp.hasOwnProperty('from' + source)) {
-        exp['from' + source] += amount;
+        exp['from' + source] += gained;
     }
     // 计算等级
     const thresholds = [0, 100, 300, 600, 1000, 1500, 2200, 3000, 4000, 5500, 7500, 10000];
@@ -291,7 +358,7 @@ function addExp(email, amount, source) {
     if (newLevel > oldLevel) {
         showToast({ title: '升级了', message: `达到 Lv.${newLevel} ${getLevelTitle(newLevel)}`, type: 'success' });
     }
-    return { gained: amount, levelUp: newLevel > oldLevel, newLevel, oldLevel };
+    return { gained, boosted, boostPct, levelUp: newLevel > oldLevel, newLevel, oldLevel };
 }
 
 // ===== 头像系统 =====
@@ -514,26 +581,26 @@ function renderToolsSection(user) {
     `;
 }
 
-function renderBadges(email) {
+function renderUserBadges(email) {
     const badges = getUserBadges(email);
     if (badges.length === 0) return '';
     return badges.map(b => {
         const icons = {
-            minecraft: '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="2" y="1" width="4" height="4"/><rect x="10" y="1" width="4" height="4"/><rect x="2" y="7" width="4" height="4"/><rect x="10" y="7" width="4" height="4"/><rect x="2" y="13" width="4" height="2"/><rect x="10" y="13" width="4" height="2"/></svg>',
+            minecraft: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="2" y="1" width="4" height="3" fill="currentColor" rx="0.5"/><rect x="6" y="0" width="4" height="3" fill="currentColor" opacity="0.8" rx="0.5"/><rect x="10" y="1" width="4" height="3" fill="currentColor" opacity="0.6" rx="0.5"/><rect x="1" y="4" width="6" height="4" fill="currentColor" opacity="0.5" rx="0.5"/><rect x="9" y="4" width="6" height="4" fill="currentColor" opacity="0.4" rx="0.5"/><rect x="1" y="8" width="6" height="4" fill="currentColor" opacity="0.3" rx="0.5"/><rect x="9" y="8" width="6" height="4" fill="currentColor" opacity="0.5" rx="0.5"/><rect x="2" y="12" width="4" height="2" fill="currentColor" rx="0.5"/><rect x="10" y="12" width="4" height="2" fill="currentColor" opacity="0.6" rx="0.5"/></svg>',
             premium: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1l2 5h5l-4 3 1.5 5L8 10l-4.5 4L5 9 1 6h5z" fill="currentColor"/></svg>',
-            admin: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1L1 4v3c0 5.5 3 8.5 7 10 4-1.5 7-4.5 7-10V4L8 1z" fill="currentColor"/></svg>',
-            super_admin: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1L1 4v3c0 5.5 3 8.5 7 10 4-1.5 7-4.5 7-10V4L8 1z" fill="currentColor"/><circle cx="8" cy="8" r="1.5" fill="#fff"/></svg>',
-            op_admin: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1L1 4v3c0 5.5 3 8.5 7 10 4-1.5 7-4.5 7-10V4L8 1z" fill="currentColor"/><path d="M5 8l2 2 4-4" stroke="#fff" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-            checkin_30: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-            checkin_100: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 2v2M8 12v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
-            checkin_365: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 2v2M8 12v2M2 8h2M12 8h2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
-            checkin_500: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 3l2 2M11 11l2 2M3 13l2-2M11 5l2-2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
-            checkin_1000: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M1 8h2M13 8h2M8 1v2M8 13v2M3 3l1.5 1.5M11.5 11.5l1.5 1.5M3 13l1.5-1.5M11.5 4.5l1.5-1.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
-            exp_100: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1l1.5 4h4l-3.2 2.5 1.2 4L8 9.5 4.5 11.5l1.2-4L2.5 5h4z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-            exp_1000: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1l1.5 4h4l-3.2 2.5 1.2 4L8 9.5 4.5 11.5l1.2-4L2.5 5h4z" fill="currentColor"/></svg>',
-            exp_5000: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1l1.5 4h4l-3.2 2.5 1.2 4L8 9.5 4.5 11.5l1.2-4L2.5 5h4z" fill="currentColor"/><circle cx="8" cy="8" r="2" fill="#fff"/></svg>',
-            dev: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M5 5l-3 3 3 3M11 5l3 3-3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-            maintainer: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2v4M8 10v4M2 8h4M10 8h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+            checkin_30: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5.5" stroke="currentColor" stroke-width="1.5"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="0.5" stroke-dasharray="2 2"/></svg>',
+            checkin_100: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5.5" stroke="currentColor" stroke-width="1.5"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 2v1.5M8 12.5v1.5M2 8h1.5M12.5 8h1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="0.5" stroke-dasharray="2 2"/></svg>',
+            checkin_365: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5.5" stroke="currentColor" stroke-width="1.5"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 1.5v1.5M8 13v1.5M1.5 8h1.5M13 8h1.5M3.5 3.5l1 1M11.5 11.5l1 1M3.5 12.5l1-1M11.5 4.5l1-1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="0.5" stroke-dasharray="1.5 1.5"/></svg>',
+            checkin_500: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5" stroke="currentColor" stroke-width="1.5" fill="rgba(255,152,0,0.15)"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 1.5v1M8 13.5v1M1.5 8h1M13.5 8h1M3 3l1.2 1.2M11.8 11.8l1.2 1.2M3 13l1.2-1.2M11.8 4.2l1.2-1.2" stroke="currentColor" stroke-width="1" stroke-linecap="round"/><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1"/></svg>',
+            checkin_1000: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="4.5" stroke="currentColor" stroke-width="1.5" fill="rgba(233,30,99,0.2)"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 1v1.5M8 13.5v1M1 8h1.5M13.5 8h1M2.5 2.5l1 1M12.5 12.5l1 1M2.5 13.5l1-1M12.5 3.5l1-1" stroke="currentColor" stroke-width="1" stroke-linecap="round"/><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="7.5" stroke="currentColor" stroke-width="0.5" stroke-dasharray="1 1"/></svg>',
+            op_admin: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1L2 4v2.5c0 4.5 2.5 7 6 8.5 3.5-1.5 6-4 6-8.5V4L8 1z" fill="currentColor" opacity="0.8"/><path d="M8 2.5L3 5v1.5c0 4 2 6.5 5 8 3-1.5 5-4 5-8V5L8 2.5z" stroke="#fff" stroke-width="0.5"/><path d="M5.5 8l2 2 3.5-3.5" stroke="#FFD700" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="4" r="1" fill="#FFD700"/></svg>',
+            super_admin: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1L2 4v2.5c0 4.5 2.5 7 6 8.5 3.5-1.5 6-4 6-8.5V4L8 1z" fill="currentColor" opacity="0.8"/><path d="M8 2.5L3 5v1.5c0 4 2 6.5 5 8 3-1.5 5-4 5-8V5L8 2.5z" stroke="#fff" stroke-width="0.5"/><circle cx="8" cy="8" r="2" fill="#fff" opacity="0.9"/><circle cx="8" cy="8" r="3" stroke="#fff" stroke-width="0.5" stroke-dasharray="1.5 1"/></svg>',
+            admin: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1L2 4v2.5c0 4.5 2.5 7 6 8.5 3.5-1.5 6-4 6-8.5V4L8 1z" fill="currentColor" opacity="0.85"/><path d="M8 2.5L3 5v1.5c0 4 2 6.5 5 8 3-1.5 5-4 5-8V5L8 2.5z" stroke="rgba(255,255,255,0.3)" stroke-width="0.5"/></svg>',
+            dev: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="6" height="4" rx="0.5" stroke="currentColor" stroke-width="1" fill="rgba(0,188,212,0.1)"/><rect x="9" y="9" width="6" height="4" rx="0.5" stroke="currentColor" stroke-width="1" fill="rgba(0,188,212,0.1)"/><path d="M7 5l2-1v6l-2 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="3" cy="5" r="0.5" fill="currentColor"/><circle cx="12" cy="11" r="0.5" fill="currentColor"/><text x="3" y="6.5" font-size="3" fill="currentColor" font-family="monospace">&lt;/&gt;</text></svg>',
+            maintainer: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2v4M8 10v4M2 8h4M10 8h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="8" cy="8" r="1.5" fill="currentColor" opacity="0.3"/><circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="0.5" stroke-dasharray="1.5 1.5"/><path d="M6 2h4M6 14h4M2 6v4M14 6v4" stroke="currentColor" stroke-width="0.8" stroke-linecap="round"/></svg>',
+            exp_100: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1.5l1.2 3.5h3.8l-3 2.3 1.1 3.7L8 8.8 4.9 11l1.1-3.7-3-2.3h3.8z" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/><path d="M8 4l.6 1.8h2l-1.6 1.2.6 1.8L8 7.8l-1.6 1.2.6-1.8-1.6-1.2h2z" fill="currentColor" opacity="0.3"/></svg>',
+            exp_1000: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1.5l1.2 3.5h3.8l-3 2.3 1.1 3.7L8 8.8 4.9 11l1.1-3.7-3-2.3h3.8z" fill="currentColor"/><path d="M8 3l.8 2.5h2.5l-2 1.5.7 2.5L8 8.2 5 9.5l.7-2.5-2-1.5h2.5z" fill="rgba(255,255,255,0.3)"/><circle cx="8" cy="6.5" r="0.8" fill="#fff"/></svg>',
+            exp_5000: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1l1.2 3.5h3.8l-3 2.3 1.1 3.7L8 8.3 4.9 10.5l1.1-3.7-3-2.3h3.8z" fill="currentColor"/><path d="M8 2.5l.8 2.5h2.5l-2 1.5.7 2.5L8 8l-2 1.5.7-2.5-2-1.5h2.5z" fill="rgba(255,255,255,0.4)"/><circle cx="8" cy="6" r="1" fill="#fff"/><circle cx="8" cy="6" r="2" stroke="#FFD700" stroke-width="0.5"/></svg>'
         };
         const colors = {
             minecraft: '#4CAF50',
@@ -1117,6 +1184,38 @@ function doCheckin() {
     renderMe();
 }
 
+function renderExpBar(email) {
+    const exp = getExp(email);
+    const info = getLevelInfo(exp.level);
+    const pct = Math.min(100, Math.floor((exp.total - info.min) / (info.max - info.min) * 100));
+    const boostPct = hasActiveBoost(email);
+    const boostMsg = boostPct > 0 ? `<div class="exp-detail-item">经验加成: <span>${boostPct}%</span> (生效中)</div>` : '';
+
+    return `
+<div class="exp-bar-container">
+    <div class="exp-bar-card">
+        <div class="exp-bar-header">
+            <div class="exp-bar-level">${getLevelDisplay(exp.level)} ${getLevelTitle(exp.level)}</div>
+            <div class="exp-bar-title">总经验: ${exp.total}</div>
+        </div>
+        <div class="exp-bar-track">
+            <div class="exp-bar-fill" style="width:${pct}%;"></div>
+        </div>
+        <div class="exp-bar-text">${exp.total - info.min} / ${info.max - info.min} (下一级)</div>
+        <div class="exp-detail-grid">
+            <div class="exp-detail-item">签到 <span>${exp.fromCheckin}</span></div>
+            <div class="exp-detail-item">发帖 <span>${exp.fromPost}</span></div>
+            <div class="exp-detail-item">点赞 <span>${exp.fromLike}</span></div>
+            <div class="exp-detail-item">收藏 <span>${exp.fromFav}</span></div>
+            <div class="exp-detail-item">阅读 <span>${exp.fromView}</span></div>
+            <div class="exp-detail-item">BUG <span>${exp.fromBug}</span></div>
+            ${boostMsg}
+        </div>
+    </div>
+</div>
+    `;
+}
+
 function renderCheckinCard(email) {
     const records = getCheckinData(email);
     const checkedToday = hasCheckedInToday(email);
@@ -1247,6 +1346,7 @@ function renderShop() {
     const userPoints = state.points[email] || 0;
     const inv = state.inventory[email] || {};
     const makeupCards = inv.makeup_card || 0;
+    const boostPct = hasActiveBoost(email);
 
     // 最近14天可补签的日期
     const records = getCheckinData(email);
@@ -1282,7 +1382,20 @@ function renderShop() {
                     </div>
                     <div class="shop-item-action">
                         <div class="shop-item-price">100 积分</div>
-                        <button class="btn ${userPoints >= 100 ? 'btn-primary' : 'btn-disabled'} shop-buy-btn" ${userPoints < 100 ? 'disabled' : ''} data-item="makeup_card">兑换</button>
+                        <button class="btn ${userPoints >= 100 && canBuyThisWeek(email, 'makeup_card') ? 'btn-primary' : 'btn-disabled'} shop-buy-btn" ${(userPoints < 100 || !canBuyThisWeek(email, 'makeup_card')) ? 'disabled' : ''} data-item="makeup_card">兑换</button>
+                    </div>
+                </div>
+                <div class="shop-item">
+                    <div class="shop-item-icon" style="background:var(--accent);">
+                        <svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M8 1v3M8 12v3M1 8h3M12 8h3" stroke="#fff" stroke-width="2" stroke-linecap="round"/><path d="M3.5 3.5l2 2M10.5 10.5l2 2M3.5 12.5l2-2M10.5 5.5l2-2" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="8" r="2" fill="#fff"/></svg>
+                    </div>
+                    <div class="shop-item-info">
+                        <div class="shop-item-name">经验加成卡</div>
+                        <div class="shop-item-desc">连续签到2天后可激活，经验+10%，持续3天</div>
+                    </div>
+                    <div class="shop-item-action">
+                        <div class="shop-item-price">200 积分</div>
+                        <button class="btn ${userPoints >= 200 && canBuyThisWeek(email, 'exp_boost') ? 'btn-primary' : 'btn-disabled'} shop-buy-btn" ${(userPoints < 200 || !canBuyThisWeek(email, 'exp_boost')) ? 'disabled' : ''} data-item="exp_boost">兑换</button>
                     </div>
                 </div>
             </div>
@@ -1294,6 +1407,10 @@ function renderShop() {
                 <div class="inv-item">
                     <div class="inv-item-name">补签卡</div>
                     <div class="inv-item-count">x${makeupCards}</div>
+                </div>
+                <div class="inv-item">
+                    <div class="inv-item-name">经验加成卡</div>
+                    <div class="inv-item-count">${boostPct > 0 ? '生效中' : 'x' + (inv.exp_boost || 0)}</div>
                 </div>
                 ${makeupCards === 0 ? '<div class="inv-empty">背包空空如也</div>' : ''}
             </div>
@@ -1330,13 +1447,33 @@ function renderShop() {
                     showToast({ title: '积分不足', message: '需要100积分', type: 'warning' });
                     return;
                 }
+                if (!canBuyThisWeek(email, 'makeup_card')) {
+                    showToast({ title: '本周已达上限', message: '补签卡每周仅可兑换两次', type: 'warning' });
+                    return;
+                }
                 if (!state.inventory[email]) state.inventory[email] = {};
                 if (!state.inventory[email].makeup_card) state.inventory[email].makeup_card = 0;
                 state.inventory[email].makeup_card++;
                 state.points[email] -= 100;
                 saveInventory();
                 savePoints();
+                recordPurchase(email, 'makeup_card');
                 showToast({ title: '兑换成功', message: '获得1张补签卡', type: 'success' });
+                renderShop();
+            } else if (item === 'exp_boost') {
+                if ((state.points[email] || 0) < 200) {
+                    showToast({ title: '积分不足', message: '需要200积分', type: 'warning' });
+                    return;
+                }
+                if (!canBuyThisWeek(email, 'exp_boost')) {
+                    showToast({ title: '本周已达上限', message: '经验加成卡每周仅可兑换一次', type: 'warning' });
+                    return;
+                }
+                activateExpBoost(email);
+                state.points[email] -= 200;
+                savePoints();
+                recordPurchase(email, 'exp_boost');
+                showToast({ title: '兑换成功', message: '经验加成已激活，10%加成持续3天', type: 'success' });
                 renderShop();
             }
         });
@@ -1375,20 +1512,20 @@ function renderBadgesSection(email) {
     }
 
     const badgeIcons = {
-        minecraft: '<svg width="32" height="32" viewBox="0 0 16 16" fill="currentColor"><rect x="2" y="1" width="4" height="4"/><rect x="10" y="1" width="4" height="4"/><rect x="2" y="7" width="4" height="4"/><rect x="10" y="7" width="4" height="4"/><rect x="2" y="13" width="4" height="2"/><rect x="10" y="13" width="4" height="2"/></svg>',
-        checkin_30: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-        op_admin: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M8 1L1 4v3c0 5.5 3 8.5 7 10 4-1.5 7-4.5 7-10V4L8 1z" fill="currentColor"/><path d="M5 8l2 2 4-4" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-        super_admin: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M8 1L1 4v3c0 5.5 3 8.5 7 10 4-1.5 7-4.5 7-10V4L8 1z" fill="currentColor"/><circle cx="8" cy="8" r="2" fill="#fff"/></svg>',
-        admin: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M8 1L1 4v3c0 5.5 3 8.5 7 10 4-1.5 7-4.5 7-10V4L8 1z" fill="currentColor"/></svg>',
-        dev: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M5 5l-3 3 3 3M11 5l3 3-3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-        maintainer: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M8 2v4M8 10v4M2 8h4M10 8h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
-        checkin_100: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 2v2M8 12v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
-        checkin_365: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 2v2M8 12v2M2 8h2M12 8h2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
-        checkin_500: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 3l2 2M11 11l2 2M3 13l2-2M11 5l2-2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
-        checkin_1000: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M1 8h2M13 8h2M8 1v2M8 13v2M3 3l1.5 1.5M11.5 11.5l1.5 1.5M3 13l1.5-1.5M11.5 4.5l1.5-1.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
-        exp_100: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M8 1l1.5 4h4l-3.2 2.5 1.2 4L8 9.5 4.5 11.5l1.2-4L2.5 5h4z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-        exp_1000: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M8 1l1.5 4h4l-3.2 2.5 1.2 4L8 9.5 4.5 11.5l1.2-4L2.5 5h4z" fill="currentColor"/></svg>',
-        exp_5000: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M8 1l1.5 4h4l-3.2 2.5 1.2 4L8 9.5 4.5 11.5l1.2-4L2.5 5h4z" fill="currentColor"/><circle cx="8" cy="8" r="2" fill="#fff"/></svg>',
+        minecraft: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><rect x="2" y="1" width="4" height="3" fill="#4CAF50" rx="0.5"/><rect x="6" y="0" width="4" height="3" fill="#66BB6A" rx="0.5"/><rect x="10" y="1" width="4" height="3" fill="#388E3C" rx="0.5"/><rect x="1" y="4" width="6" height="4" fill="#8D6E63" rx="0.5"/><rect x="9" y="4" width="6" height="4" fill="#795548" rx="0.5"/><rect x="1" y="8" width="6" height="4" fill="#6D4C41" rx="0.5"/><rect x="9" y="8" width="6" height="4" fill="#8D6E63" rx="0.5"/><rect x="2" y="12" width="4" height="2" fill="#4CAF50" rx="0.5"/><rect x="10" y="12" width="4" height="2" fill="#388E3C" rx="0.5"/><rect x="6" y="12" width="4" height="3" fill="#33691E" rx="0.5"/><rect x="4" y="4" width="2" height="2" fill="#4CAF50" rx="0.5"/><rect x="10" y="4" width="2" height="2" fill="#4CAF50" rx="0.5"/></svg>',
+        checkin_30: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5.5" stroke="currentColor" stroke-width="1.5"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="0.5" stroke-dasharray="2 2"/></svg>',
+        checkin_100: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5.5" stroke="currentColor" stroke-width="1.5"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 2v1.5M8 12.5v1.5M2 8h1.5M12.5 8h1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="0.5" stroke-dasharray="2 2"/></svg>',
+        checkin_365: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5.5" stroke="currentColor" stroke-width="1.5"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 1.5v1.5M8 13v1.5M1.5 8h1.5M13 8h1.5M3.5 3.5l1 1M11.5 11.5l1 1M3.5 12.5l1-1M11.5 4.5l1-1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="0.5" stroke-dasharray="1.5 1.5"/></svg>',
+        checkin_500: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5" stroke="currentColor" stroke-width="1.5" fill="rgba(255,152,0,0.15)"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 1.5v1M8 13.5v1M1.5 8h1M13.5 8h1M3 3l1.2 1.2M11.8 11.8l1.2 1.2M3 13l1.2-1.2M11.8 4.2l1.2-1.2" stroke="currentColor" stroke-width="1" stroke-linecap="round"/><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1"/></svg>',
+        checkin_1000: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="4.5" stroke="currentColor" stroke-width="1.5" fill="rgba(233,30,99,0.2)"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 1v1.5M8 13.5v1M1 8h1.5M13.5 8h1M2.5 2.5l1 1M12.5 12.5l1 1M2.5 13.5l1-1M12.5 3.5l1-1" stroke="currentColor" stroke-width="1" stroke-linecap="round"/><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="7.5" stroke="currentColor" stroke-width="0.5" stroke-dasharray="1 1"/></svg>',
+        op_admin: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M8 1L2 4v2.5c0 4.5 2.5 7 6 8.5 3.5-1.5 6-4 6-8.5V4L8 1z" fill="currentColor" opacity="0.8"/><path d="M8 2.5L3 5v1.5c0 4 2 6.5 5 8 3-1.5 5-4 5-8V5L8 2.5z" stroke="#fff" stroke-width="0.5"/><path d="M5.5 8l2 2 3.5-3.5" stroke="#FFD700" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="4" r="1" fill="#FFD700"/></svg>',
+        super_admin: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M8 1L2 4v2.5c0 4.5 2.5 7 6 8.5 3.5-1.5 6-4 6-8.5V4L8 1z" fill="currentColor" opacity="0.8"/><path d="M8 2.5L3 5v1.5c0 4 2 6.5 5 8 3-1.5 5-4 5-8V5L8 2.5z" stroke="#fff" stroke-width="0.5"/><circle cx="8" cy="8" r="2" fill="#fff" opacity="0.9"/><circle cx="8" cy="8" r="3" stroke="#fff" stroke-width="0.5" stroke-dasharray="1.5 1"/></svg>',
+        admin: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M8 1L2 4v2.5c0 4.5 2.5 7 6 8.5 3.5-1.5 6-4 6-8.5V4L8 1z" fill="currentColor" opacity="0.85"/><path d="M8 2.5L3 5v1.5c0 4 2 6.5 5 8 3-1.5 5-4 5-8V5L8 2.5z" stroke="rgba(255,255,255,0.3)" stroke-width="0.5"/></svg>',
+        dev: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="6" height="4" rx="0.5" stroke="currentColor" stroke-width="1" fill="rgba(0,188,212,0.1)"/><rect x="9" y="9" width="6" height="4" rx="0.5" stroke="currentColor" stroke-width="1" fill="rgba(0,188,212,0.1)"/><path d="M7 5l2-1v6l-2 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="3" cy="5" r="0.5" fill="currentColor"/><circle cx="12" cy="11" r="0.5" fill="currentColor"/><text x="3" y="6.5" font-size="3" fill="currentColor" font-family="monospace">&lt;/&gt;</text></svg>',
+        maintainer: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M8 2v4M8 10v4M2 8h4M10 8h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="8" cy="8" r="1.5" fill="currentColor" opacity="0.3"/><circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="0.5" stroke-dasharray="1.5 1.5"/><path d="M6 2h4M6 14h4M2 6v4M14 6v4" stroke="currentColor" stroke-width="0.8" stroke-linecap="round"/></svg>',
+        exp_100: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M8 1.5l1.2 3.5h3.8l-3 2.3 1.1 3.7L8 8.8 4.9 11l1.1-3.7-3-2.3h3.8z" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/><path d="M8 4l.6 1.8h2l-1.6 1.2.6 1.8L8 7.8l-1.6 1.2.6-1.8-1.6-1.2h2z" fill="currentColor" opacity="0.3"/></svg>',
+        exp_1000: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M8 1.5l1.2 3.5h3.8l-3 2.3 1.1 3.7L8 8.8 4.9 11l1.1-3.7-3-2.3h3.8z" fill="currentColor"/><path d="M8 3l.8 2.5h2.5l-2 1.5.7 2.5L8 8.2 5 9.5l.7-2.5-2-1.5h2.5z" fill="rgba(255,255,255,0.3)"/><circle cx="8" cy="6.5" r="0.8" fill="#fff"/></svg>',
+        exp_5000: '<svg width="32" height="32" viewBox="0 0 16 16" fill="none"><path d="M8 1l1.2 3.5h3.8l-3 2.3 1.1 3.7L8 8.3 4.9 10.5l1.1-3.7-3-2.3h3.8z" fill="currentColor"/><path d="M8 2.5l.8 2.5h2.5l-2 1.5.7 2.5L8 8l-2 1.5.7-2.5-2-1.5h2.5z" fill="rgba(255,255,255,0.4)"/><circle cx="8" cy="6" r="1" fill="#fff"/><circle cx="8" cy="6" r="2" stroke="#FFD700" stroke-width="0.5"/></svg>'
     };
     const badgeColors = {
         minecraft: '#4CAF50',
@@ -1737,6 +1874,7 @@ function initSettingsBindings() {
     const showBtn = document.getElementById('musicShowBtn');
     if (showBtn) {
         showBtn.addEventListener('click', () => {
+            if (!state.currentUser) return;
             const uid = state.musicUserId[state.currentUser.email];
             if (uid) showMusicPlayer(uid);
         });
@@ -1862,7 +2000,7 @@ function renderMe() {
                         <div class="profile-name-section">
                             <h2>${escapeHtml(user.username)}</h2>
                             <p class="profile-email">${escapeHtml(user.email)}</p>
-                            <div class="profile-badges-row">${renderBadges(user.email)}</div>
+                            <div class="profile-badges-row">${renderUserBadges(user.email)}</div>
                         </div>
                     </div>
                 </div>
@@ -1912,6 +2050,7 @@ function renderMe() {
         <div class="me-section">
             <div class="me-section-title">签到与积分</div>
             <div class="me-section-divider"></div>
+            ${renderExpBar(user.email)}
             ${renderCheckinCard(user.email)}
         </div>
 
@@ -2195,7 +2334,7 @@ function showPostDetail(postId, isRefresh = false) {
             <div class="comments-header">评论 (${post.comments.length})</div>
             <div class="comment-form">
                 <div class="comment-input-wrapper">
-                    <textarea placeholder="写下你的评论..." id="commentInput"></textarea>
+                    <textarea placeholder="写下你的评论..." id="commentInput" class="form-textarea"></textarea>
                     <button class="btn btn-primary" id="submitComment" style="height: fit-content;">发送</button>
                 </div>
             </div>
@@ -2395,6 +2534,8 @@ function initLogin() {
 const EMAIL_API = 'http://localhost:3000';
 
 function initRegister() {
+    const regForm = document.getElementById('registerForm');
+    if (regForm) regForm.addEventListener('submit', (e) => e.preventDefault());
     const sendCodeBtn = document.getElementById('sendCodeBtn');
     const completeBtn = document.getElementById('completeRegisterBtn');
     const resendBtn = document.getElementById('resendCodeBtn');
@@ -3288,7 +3429,7 @@ function renderUserTable(users, canDelete) {
                             <td>${userPosts.length}</td>
                             ${canDelete ? `
                                 <td>
-                                    <button class="admin-btn-delete admin-btn-delete-user" data-user-email="${u.email}" ${u.email === state.currentUser.email ? 'disabled title="不能删除自己"' : ''}>
+                                    <button class="admin-btn-delete admin-btn-delete-user" data-user-email="${escapeHtml(u.email)}" ${u.email === state.currentUser.email ? 'disabled title="不能删除自己"' : ''}>
                                         <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 4h10M5 4V3a1 1 0 011-1h2a1 1 0 011 1v1M11 4v7a1 1 0 01-1 1H4a1 1 0 01-1-1V4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                         删除
                                     </button>
@@ -3374,7 +3515,13 @@ function initNavLinks() {
             }
             navigateTo('me');
         } else if (page === 'settings') {
-            showToast({ title: '设置', message: '设置功能即将上线', type: 'info' });
+            if (!state.currentUser) { showToast({ title: '请先登录', type: 'warning' }); navigateTo('login'); return; }
+            navigateTo('me');
+            setTimeout(() => {
+                const sections = document.querySelectorAll('.me-section');
+                const last = sections[sections.length - 1];
+                if (last) last.scrollIntoView({ behavior: 'smooth' });
+            }, 100);
         } else if (page === 'admin') {
             renderAdmin();
             navigateTo('admin');
